@@ -114,6 +114,163 @@ TEST(OrderRepositoryTest, RejectsEmptyCustomerName) {
     EXPECT_FALSE(result.success);
 }
 
+TEST(OrderRepositoryTest, ApproveWithSufficientStockDeductsAndConfirms) {
+    const auto path = tempFile("order_approve_sufficient.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 500));
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    const auto reserved = orderRepo.reserve("S-001", "고객A", 200);
+    ASSERT_TRUE(reserved.success);
+
+    const auto approved = orderRepo.approve(reserved.order->orderNumber);
+
+    ASSERT_TRUE(approved.success);
+    ASSERT_TRUE(approved.order.has_value());
+    EXPECT_EQ(approved.order->status, OrderStatus::CONFIRMED);
+    EXPECT_EQ(approved.order->shortageQuantity, 0);
+
+    auto sample = sampleRepo.find("S-001");
+    ASSERT_TRUE(sample.has_value());
+    EXPECT_EQ(sample->stock, 300);  // 500 - 200
+}
+
+TEST(OrderRepositoryTest, ApproveWithInsufficientStockZeroesStockAndProduces) {
+    const auto path = tempFile("order_approve_insufficient.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 30));
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    const auto reserved = orderRepo.reserve("S-001", "고객A", 200);
+    ASSERT_TRUE(reserved.success);
+
+    const auto approved = orderRepo.approve(reserved.order->orderNumber);
+
+    ASSERT_TRUE(approved.success);
+    ASSERT_TRUE(approved.order.has_value());
+    EXPECT_EQ(approved.order->status, OrderStatus::PRODUCING);
+    EXPECT_EQ(approved.order->shortageQuantity, 170);  // 200 - 30
+
+    auto sample = sampleRepo.find("S-001");
+    ASSERT_TRUE(sample.has_value());
+    EXPECT_EQ(sample->stock, 0);
+}
+
+TEST(OrderRepositoryTest, RejectTransitionsToRejectedWithoutStockChange) {
+    const auto path = tempFile("order_reject.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 500));
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    const auto reserved = orderRepo.reserve("S-001", "고객A", 200);
+    ASSERT_TRUE(reserved.success);
+
+    const auto rejected = orderRepo.reject(reserved.order->orderNumber);
+
+    EXPECT_TRUE(rejected.success);
+    auto found = orderRepo.find(reserved.order->orderNumber);
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found->status, OrderStatus::REJECTED);
+
+    auto sample = sampleRepo.find("S-001");
+    ASSERT_TRUE(sample.has_value());
+    EXPECT_EQ(sample->stock, 500);  // 변경 없음
+}
+
+TEST(OrderRepositoryTest, RejectsReapprovalOfNonReservedOrder) {
+    const auto path = tempFile("order_reapprove.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 500));
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    const auto reserved = orderRepo.reserve("S-001", "고객A", 200);
+    ASSERT_TRUE(orderRepo.approve(reserved.order->orderNumber).success);
+
+    const auto secondApprove = orderRepo.approve(reserved.order->orderNumber);
+    EXPECT_FALSE(secondApprove.success);
+
+    const auto rejectAfterApprove = orderRepo.reject(reserved.order->orderNumber);
+    EXPECT_FALSE(rejectAfterApprove.success);
+}
+
+TEST(OrderRepositoryTest, ApproveUnknownOrderNumberFails) {
+    const auto path = tempFile("order_approve_unknown.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    const auto result = orderRepo.approve("ORD-NOTFOUND-0001");
+
+    EXPECT_FALSE(result.success);
+}
+
+TEST(OrderRepositoryTest, ListByStatusReturnsOnlyMatchingOrders) {
+    const auto path = tempFile("order_list_by_status.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 500));
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    const auto first = orderRepo.reserve("S-001", "고객A", 10);
+    const auto second = orderRepo.reserve("S-001", "고객B", 20);
+    ASSERT_TRUE(orderRepo.approve(first.order->orderNumber).success);
+
+    const auto reservedOnly = orderRepo.listByStatus(OrderStatus::RESERVED);
+    ASSERT_EQ(reservedOnly.size(), 1u);
+    EXPECT_EQ(reservedOnly[0].orderNumber, second.order->orderNumber);
+
+    const auto confirmedOnly = orderRepo.listByStatus(OrderStatus::CONFIRMED);
+    ASSERT_EQ(confirmedOnly.size(), 1u);
+    EXPECT_EQ(confirmedOnly[0].orderNumber, first.order->orderNumber);
+}
+
+TEST(OrderRepositoryTest, ApprovalPersistsAcrossReload) {
+    const auto path = tempFile("order_approve_persist.json");
+    std::string orderNumber;
+    {
+        sampleorder::JsonStore store(path);
+        store.ensureLoaded();
+        SampleRepository sampleRepo(store);
+        ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+        ASSERT_TRUE(sampleRepo.setStock("S-001", 30));
+        OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+        const auto reserved = orderRepo.reserve("S-001", "고객A", 200);
+        ASSERT_TRUE(reserved.success);
+        orderNumber = reserved.order->orderNumber;
+        ASSERT_TRUE(orderRepo.approve(orderNumber).success);
+    }
+
+    sampleorder::JsonStore reloaded(path);
+    reloaded.ensureLoaded();
+    SampleRepository sampleRepo(reloaded);
+    OrderRepository orderRepo(reloaded, sampleRepo, testdata::fixedClock);
+
+    const auto found = orderRepo.find(orderNumber);
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found->status, OrderStatus::PRODUCING);
+    EXPECT_EQ(found->shortageQuantity, 170);
+
+    const auto sample = sampleRepo.find("S-001");
+    ASSERT_TRUE(sample.has_value());
+    EXPECT_EQ(sample->stock, 0);
+}
+
 TEST(OrderRepositoryTest, PersistsAcrossReload) {
     const auto path = tempFile("order_persist.json");
     {

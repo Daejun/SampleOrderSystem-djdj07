@@ -132,6 +132,30 @@ TEST(SampleRepositoryTest, SearchMatchesPartialCaseInsensitive) {
     EXPECT_TRUE(none.empty());
 }
 
+TEST(SampleRepositoryTest, SetStockUpdatesExistingSample) {
+    const auto path = tempFile("repo_set_stock.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository repo(store);
+
+    ASSERT_TRUE(repo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+
+    EXPECT_TRUE(repo.setStock("S-001", 150));
+
+    auto found = repo.find("S-001");
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found->stock, 150);
+}
+
+TEST(SampleRepositoryTest, SetStockReturnsFalseForUnknownId) {
+    const auto path = tempFile("repo_set_stock_unknown.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository repo(store);
+
+    EXPECT_FALSE(repo.setStock("S-999", 10));
+}
+
 TEST(SampleRepositoryTest, PersistsAcrossReload) {
     const auto path = tempFile("repo_persist.json");
     auto sample = testdata::toSample(DummyGenerator::generateValidFromSchema(testdata::sampleSchema()));

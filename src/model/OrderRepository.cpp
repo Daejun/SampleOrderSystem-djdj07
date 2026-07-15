@@ -12,6 +12,8 @@ Order fromJson(const nlohmann::ordered_json& j) {
     o.sampleId = j.at("sampleId").get<std::string>();
     o.customerName = j.at("customerName").get<std::string>();
     o.quantity = j.at("quantity").get<int>();
+    // Phase 3까지 생성된 data.json에는 이 필드가 없으므로 기본값 0으로 하위 호환.
+    o.shortageQuantity = j.value("shortageQuantity", 0);
     o.status = orderStatusFromString(j.at("status").get<std::string>());
     return o;
 }
@@ -22,6 +24,7 @@ nlohmann::ordered_json toJson(const Order& o) {
         {"sampleId", o.sampleId},
         {"customerName", o.customerName},
         {"quantity", o.quantity},
+        {"shortageQuantity", o.shortageQuantity},
         {"status", orderStatusToString(o.status)}
     };
 }
@@ -102,6 +105,57 @@ OrderRepository::ReserveResult OrderRepository::reserve(const std::string& sampl
     return {true, "", order};
 }
 
+OrderRepository::ApproveResult OrderRepository::approve(const std::string& orderNumber) {
+    for (auto& item : store_.orders()) {
+        if (item.at("orderNumber").get<std::string>() != orderNumber) {
+            continue;
+        }
+
+        Order order = fromJson(item);
+        if (order.status != OrderStatus::RESERVED) {
+            return {false, "이미 처리된 주문입니다: " + orderNumber, std::nullopt};
+        }
+
+        // reserve()에서 존재하는 sampleId만 받아들이므로 여기서는 항상 존재한다.
+        const auto sample = sampleRepository_.find(order.sampleId);
+        const int currentStock = sample->stock;
+
+        if (currentStock >= order.quantity) {
+            sampleRepository_.setStock(order.sampleId, currentStock - order.quantity);
+            order.shortageQuantity = 0;
+            order.status = OrderStatus::CONFIRMED;
+        } else {
+            order.shortageQuantity = order.quantity - currentStock;
+            sampleRepository_.setStock(order.sampleId, 0);
+            order.status = OrderStatus::PRODUCING;
+        }
+
+        item = toJson(order);
+        store_.save();
+        return {true, "", order};
+    }
+    return {false, "존재하지 않는 주문번호입니다: " + orderNumber, std::nullopt};
+}
+
+OrderRepository::RejectResult OrderRepository::reject(const std::string& orderNumber) {
+    for (auto& item : store_.orders()) {
+        if (item.at("orderNumber").get<std::string>() != orderNumber) {
+            continue;
+        }
+
+        Order order = fromJson(item);
+        if (order.status != OrderStatus::RESERVED) {
+            return {false, "이미 처리된 주문입니다: " + orderNumber};
+        }
+
+        order.status = OrderStatus::REJECTED;
+        item = toJson(order);
+        store_.save();
+        return {true, ""};
+    }
+    return {false, "존재하지 않는 주문번호입니다: " + orderNumber};
+}
+
 std::optional<Order> OrderRepository::find(const std::string& orderNumber) const {
     for (const auto& item : store_.orders()) {
         if (item.at("orderNumber").get<std::string>() == orderNumber) {
@@ -115,6 +169,17 @@ std::vector<Order> OrderRepository::list() const {
     std::vector<Order> result;
     for (const auto& item : store_.orders()) {
         result.push_back(fromJson(item));
+    }
+    return result;
+}
+
+std::vector<Order> OrderRepository::listByStatus(OrderStatus status) const {
+    std::vector<Order> result;
+    for (const auto& item : store_.orders()) {
+        Order order = fromJson(item);
+        if (order.status == status) {
+            result.push_back(order);
+        }
     }
     return result;
 }

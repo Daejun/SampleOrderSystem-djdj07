@@ -74,6 +74,17 @@ std::vector<Sample> SampleRepository::list() const {
     return result;
 }
 
+bool SampleRepository::setStock(const std::string& id, int newStock) {
+    for (auto& item : store_.samples()) {
+        if (item.at("id").get<std::string>() == id) {
+            item["stock"] = newStock;
+            store_.save();
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<Sample> SampleRepository::search(const std::string& keyword) const {
     std::vector<Sample> result;
     for (const auto& item : store_.samples()) {

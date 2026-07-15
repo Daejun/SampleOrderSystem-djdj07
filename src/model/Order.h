@@ -9,6 +9,7 @@ struct Order {
     std::string sampleId;
     std::string customerName;
     int quantity = 0;
+    int shortageQuantity = 0;  // PRODUCING 전환 시에만 의미 있음, 그 외 0
     OrderStatus status = OrderStatus::RESERVED;
 };
 

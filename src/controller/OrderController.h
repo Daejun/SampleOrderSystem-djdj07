@@ -11,6 +11,9 @@ public:
 
     void reserveOrder(const std::string& sampleId, const std::string& customerName, int quantity);
     void listOrders();
+    void approveOrder(const std::string& orderNumber);
+    void rejectOrder(const std::string& orderNumber);
+    void listReservedOrders();
 
 private:
     OrderRepository& repository_;

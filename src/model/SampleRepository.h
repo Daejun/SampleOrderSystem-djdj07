@@ -21,6 +21,9 @@ public:
     std::vector<Sample> list() const;
     std::vector<Sample> search(const std::string& keyword) const;
 
+    // id가 존재하지 않으면 false. newStock은 절대값 설정(가감 아님).
+    bool setStock(const std::string& id, int newStock);
+
 private:
     sampleorder::JsonStore& store_;
 };
