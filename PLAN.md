@@ -91,6 +91,7 @@
 - **설계 시 반드시 확정할 사항 (Phase 6 코드 리뷰에서 발견)**:
   - **서브메뉴 루프 중복 (Rule of Three)**: `MainController`의 `runSampleMenu`/`runOrderMenu`/`runApprovalMenu`/`runReleaseMenu` 4개가 거의 동일한 구조(메뉴 출력→`getline`→분기→`"0"`시 종료→그 외 오류)를 반복하고 있다(`CLAUDE.md` §4.2 Rule of Three 기준 충족). 이번 Phase에서 신설할 모니터링 서브메뉴까지 포함해 공통 헬퍼로 추출한다.
 - **완료 기준**: REJECTED 제외 집계 테스트, 3구간 판정 경계값(0, 부족 임계, 여유) 테스트 통과, 서브메뉴 헬퍼 추출 후 기존 5개 메뉴 전체 회귀 없음
+- **구현 완료** (`log/phase7.md` 참고): `submenu::run()` 공통 헬퍼로 기존 4개 서브메뉴 리팩터링, `MonitoringService`/`MonitoringController` 신설, `MainController` "4" 선택 시 모니터링 하위 메뉴 연결(생성자에 `MonitoringController&` 추가).
 
 ## Phase 8 — 메인 메뉴 통합 및 E2E
 

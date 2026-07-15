@@ -59,3 +59,22 @@ void ConsoleView::showProductionStatus(const std::optional<Order>& active, const
                     order.quantity, order.shortageQuantity);
     }
 }
+
+void ConsoleView::showOrderCountSummary(const OrderCountSummary& summary) {
+    std::printf("RESERVED  %d건\n", summary.reserved);
+    std::printf("CONFIRMED %d건\n", summary.confirmed);
+    std::printf("PRODUCING %d건\n", summary.producing);
+    std::printf("RELEASE   %d건\n", summary.release);
+}
+
+void ConsoleView::showInventoryStatus(const std::vector<SampleInventoryStatus>& statuses) {
+    if (statuses.empty()) {
+        std::printf("등록된 시료가 없습니다.\n");
+        return;
+    }
+    for (const auto& status : statuses) {
+        std::printf("[%s] %s 재고 %d ea (RESERVED 합 %d ea) - %s\n", status.sample.id.c_str(),
+                    status.sample.name.c_str(), status.sample.stock, status.reservedQuantity,
+                    inventoryLevelToString(status.level).c_str());
+    }
+}

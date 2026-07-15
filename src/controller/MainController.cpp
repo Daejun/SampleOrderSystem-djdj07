@@ -1,6 +1,7 @@
 #include "MainController.h"
 
 #include "OrderInput.h"
+#include "SubMenu.h"
 
 #include <cstdio>
 #include <iostream>
@@ -42,14 +43,24 @@ void printReleaseMenu() {
     std::printf("선택 > ");
 }
 
+void printMonitoringMenu() {
+    std::printf("\n--- 모니터링 ---\n");
+    std::printf("[1] 주문량 확인\n");
+    std::printf("[2] 재고량 확인\n");
+    std::printf("[0] 뒤로가기\n");
+    std::printf("선택 > ");
+}
+
 }  // namespace
 
 MainController::MainController(IView& view, SampleController& sampleController, OrderController& orderController,
-                                ProductionController& productionController)
+                                ProductionController& productionController,
+                                MonitoringController& monitoringController)
     : view_(view),
       sampleController_(sampleController),
       orderController_(orderController),
-      productionController_(productionController) {}
+      productionController_(productionController),
+      monitoringController_(monitoringController) {}
 
 void MainController::handleSelection(const std::string& input) {
     if (input == "1") {
@@ -59,7 +70,7 @@ void MainController::handleSelection(const std::string& input) {
     } else if (input == "3") {
         runApprovalMenu();
     } else if (input == "4") {
-        view_.showMessage("[모니터링] 미구현입니다.");
+        runMonitoringMenu();
     } else if (input == "5") {
         productionController_.showStatus();
     } else if (input == "6") {
@@ -72,14 +83,8 @@ void MainController::handleSelection(const std::string& input) {
 }
 
 void MainController::runSampleMenu() {
-    std::string line;
-    while (true) {
-        printSampleMenu();
-        if (!std::getline(std::cin, line)) {
-            return;
-        }
-
-        if (line == "1") {
+    submenu::run(printSampleMenu, view_, {
+        {"1", [this]() {
             std::string id;
             std::string name;
             std::string avgStr;
@@ -101,30 +106,20 @@ void MainController::runSampleMenu() {
             } catch (const std::exception&) {
                 view_.showError("생산시간/수율은 숫자로 입력해야 합니다.");
             }
-        } else if (line == "2") {
-            sampleController_.listSamples();
-        } else if (line == "3") {
+        }},
+        {"2", [this]() { sampleController_.listSamples(); }},
+        {"3", [this]() {
             std::string keyword;
             std::printf("검색어 > ");
             std::getline(std::cin, keyword);
             sampleController_.searchSamples(keyword);
-        } else if (line == "0") {
-            return;
-        } else {
-            view_.showError("알 수 없는 선택입니다: " + line);
-        }
-    }
+        }},
+    });
 }
 
 void MainController::runOrderMenu() {
-    std::string line;
-    while (true) {
-        printOrderMenu();
-        if (!std::getline(std::cin, line)) {
-            return;
-        }
-
-        if (line == "1") {
+    submenu::run(printOrderMenu, view_, {
+        {"1", [this]() {
             std::string sampleId;
             std::string customerName;
             std::string quantityStr;
@@ -139,66 +134,47 @@ void MainController::runOrderMenu() {
             int quantity = 0;
             if (!orderinput::parsePositiveQuantity(quantityStr, quantity)) {
                 view_.showError("주문 수량은 0보다 큰 정수로 입력해야 합니다.");
-                continue;
+                return;
             }
             orderController_.reserveOrder(sampleId, customerName, quantity);
-        } else if (line == "2") {
-            orderController_.listOrders();
-        } else if (line == "0") {
-            return;
-        } else {
-            view_.showError("알 수 없는 선택입니다: " + line);
-        }
-    }
+        }},
+        {"2", [this]() { orderController_.listOrders(); }},
+    });
 }
 
 void MainController::runApprovalMenu() {
-    std::string line;
-    while (true) {
-        printApprovalMenu();
-        if (!std::getline(std::cin, line)) {
-            return;
-        }
-
-        if (line == "1") {
-            orderController_.listReservedOrders();
-        } else if (line == "2") {
+    submenu::run(printApprovalMenu, view_, {
+        {"1", [this]() { orderController_.listReservedOrders(); }},
+        {"2", [this]() {
             std::string orderNumber;
             std::printf("주문번호 > ");
             std::getline(std::cin, orderNumber);
             orderController_.approveOrder(orderNumber);
-        } else if (line == "3") {
+        }},
+        {"3", [this]() {
             std::string orderNumber;
             std::printf("주문번호 > ");
             std::getline(std::cin, orderNumber);
             orderController_.rejectOrder(orderNumber);
-        } else if (line == "0") {
-            return;
-        } else {
-            view_.showError("알 수 없는 선택입니다: " + line);
-        }
-    }
+        }},
+    });
 }
 
 void MainController::runReleaseMenu() {
-    std::string line;
-    while (true) {
-        printReleaseMenu();
-        if (!std::getline(std::cin, line)) {
-            return;
-        }
-
-        if (line == "1") {
-            orderController_.listConfirmedOrders();
-        } else if (line == "2") {
+    submenu::run(printReleaseMenu, view_, {
+        {"1", [this]() { orderController_.listConfirmedOrders(); }},
+        {"2", [this]() {
             std::string orderNumber;
             std::printf("주문번호 > ");
             std::getline(std::cin, orderNumber);
             orderController_.releaseOrder(orderNumber);
-        } else if (line == "0") {
-            return;
-        } else {
-            view_.showError("알 수 없는 선택입니다: " + line);
-        }
-    }
+        }},
+    });
+}
+
+void MainController::runMonitoringMenu() {
+    submenu::run(printMonitoringMenu, view_, {
+        {"1", [this]() { monitoringController_.showOrderSummary(); }},
+        {"2", [this]() { monitoringController_.showInventoryStatus(); }},
+    });
 }

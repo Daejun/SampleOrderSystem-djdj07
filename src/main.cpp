@@ -3,9 +3,11 @@
 #include <string>
 
 #include "controller/MainController.h"
+#include "controller/MonitoringController.h"
 #include "controller/OrderController.h"
 #include "controller/ProductionController.h"
 #include "controller/SampleController.h"
+#include "model/MonitoringService.h"
 #include "model/OrderRepository.h"
 #include "model/ProductionQueue.h"
 #include "model/SampleRepository.h"
@@ -37,11 +39,14 @@ int main() {
     ProductionQueue productionQueue(store, sampleRepository, orderRepository);
     productionQueue.advance();  // 재시작 시 밀린 생산완료를 즉시 반영
 
+    MonitoringService monitoringService(sampleRepository, orderRepository);
+
     ConsoleView view;
     SampleController sampleController(sampleRepository, view);
     OrderController orderController(orderRepository, view);
     ProductionController productionController(productionQueue, view);
-    MainController controller(view, sampleController, orderController, productionController);
+    MonitoringController monitoringController(monitoringService, view);
+    MainController controller(view, sampleController, orderController, productionController, monitoringController);
 
     std::string line;
     while (!controller.isExitRequested()) {

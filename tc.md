@@ -6,9 +6,9 @@
 생산 규칙과 `prd.md` §4.5(주문 승인/거절), §4.6(생산라인)을 근거로 하며, 실제 코드를 그대로 실행해
 값을 검증했다.
 
-## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~6, 60개)
+## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~7, 68개)
 
-`bash scripts/build.sh` 기준 최신 실행 결과: **60/60 통과**. 파일별로 정리했다.
+`bash scripts/build.sh` 기준 최신 실행 결과: **68/68 통과**. 파일별로 정리했다.
 
 ### `PlaceholderTest.cpp` — Phase 1 (빌드 확인용)
 
@@ -109,6 +109,24 @@
 | `TC4_ThreeOrdersMaintainStrictFifoOrderWithoutMerging` | 대기 주문 3건의 FIFO 순차 처리 (2부 TC-4) |
 | `TC5_ProductionQuantityRoundsUpForNonDivisibleShortage` | 수율 나눗셈 ceil 올림 (2부 TC-5) |
 | `TC6_RestartAfterCompletionTimePersistsConfirmedStateToRawJsonFile` | 재시작 후 완료 상태의 원본 파일 영속화 확인 (2부 TC-6) |
+
+### `MonitoringServiceTest.cpp` — Phase 7 (주문량/재고량 집계)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `OrderCountSummaryExcludesRejected` | 상태별 주문 건수 집계, REJECTED는 어느 카운트에도 포함되지 않음 |
+| `InventoryStatusDepletedWhenStockIsZeroRegardlessOfReserved` | 재고 0이면 RESERVED 주문 유무와 무관하게 "고갈"(최우선 판정) |
+| `InventoryStatusPlentyWhenStockEqualsReservedSum` | **경계값**: 재고==RESERVED 합이면 "여유" |
+| `InventoryStatusLowWhenStockBelowReservedSum` | 재고 < RESERVED 합이면 "부족" |
+| `InventoryStatusIgnoresNonReservedOrdersInComparison` | CONFIRMED/PRODUCING 등은 재고 판정 비교 대상에서 제외(RESERVED만 합산) |
+| `InventoryLevelToStringMapsAllLevels` | 여유/부족/고갈 문자열 매핑 |
+
+### `MonitoringControllerTest.cpp` — Phase 7 (Controller ↔ View 위임)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `ShowOrderSummaryForwardsToView` | 주문량 집계 결과를 View에 전달 |
+| `ShowInventoryStatusForwardsToView` | 재고 상태 목록을 View에 전달 |
 
 ## 2부. 재고/타이밍 시나리오 상세 (승인·생산 큐 심화)
 

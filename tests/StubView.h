@@ -18,6 +18,10 @@ public:
         lastActiveProduction = active;
         lastWaitingQueue = waiting;
     }
+    void showOrderCountSummary(const OrderCountSummary& summary) override { lastOrderCountSummary = summary; }
+    void showInventoryStatus(const std::vector<SampleInventoryStatus>& statuses) override {
+        lastInventoryStatus = statuses;
+    }
 
     std::string lastMessage;
     std::string lastError;
@@ -27,4 +31,6 @@ public:
     Order lastOrder;
     std::optional<Order> lastActiveProduction;
     std::vector<Order> lastWaitingQueue;
+    OrderCountSummary lastOrderCountSummary;
+    std::vector<SampleInventoryStatus> lastInventoryStatus;
 };
