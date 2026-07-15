@@ -6,7 +6,7 @@
 ## Phase 분해 원칙
 
 - 각 Phase는 완료 시 빌드/테스트가 깨지지 않는 독립 실행 가능 상태여야 한다.
-- 기 개발된 PoC(`json_crud`, `mvc`, `DummyDataGenerator-djdj07`, `datamon`)는 **패턴만 참고**하고 코드는 semi 프로젝트에 새로 작성한다 (사람 확인 완료).
+- 기 개발된 PoC(`json_crud`, `mvc`, `DummyDataGenerator-djdj07`, `datamon`)의 **코드를 semi 프로젝트로 직접 가져와 재사용**한다 (사람 확인 완료, 2026-07-15). 패턴만 참고하여 새로 작성하지 않는다 — 각 PoC의 소스를 semi 프로젝트 구조에 맞게 이식(porting)하는 것을 우선한다.
 - 각 Phase 착수 전 `docs/design/phaseN.md` 작성 → 사람 검토 → 구현 → Verify(§CLAUDE.md) → 사람 리뷰 → 커밋 순서를 따른다.
 
 ---
@@ -15,9 +15,9 @@
 
 - **목표**: MVC 디렉토리 구조와 CMake 빌드 체계를 갖춘, 빌드/실행만 되는 빈 콘솔 앱
 - **범위**:
-  - CMake 프로젝트 초기화, gtest 연동(FetchContent), 빈 테스트 1개로 빌드 확인 (`mvc` PoC의 TDD 진행 순서 참고)
-  - `model/ controller/ view/` 디렉토리 구조 확립 (`mvc` PoC 구조 참고)
-  - 데이터 영속성 계층의 인터페이스/파일 저장 방식 설계 (atomic write 등은 `json_crud`의 `JsonDocument` 패턴 참고, 코드는 새로 작성)
+  - `mvc` PoC의 CMake 설정·gtest 연동(FetchContent)·디렉토리 구조를 semi 프로젝트로 이식
+  - `model/ controller/ view/` 디렉토리 구조 및 `IView` 등 인터페이스 코드를 `mvc` PoC에서 가져와 재사용
+  - 데이터 영속성 계층은 `json_crud`의 `JsonDocument`(atomic write, 경로 기반 CRUD) 코드를 가져와 semi 도메인(Sample/Order)에 맞게 연결
   - 메인 메뉴 스텁(선택지만 출력, 기능 미구현)
 - **완료 기준**: `cmake --build` 성공, `ctest` 통과(placeholder 테스트 포함), 메뉴 스텁 실행 확인
 
@@ -79,14 +79,18 @@
 
 ---
 
-## 참고: PoC ↔ Phase 매핑
+## PoC ↔ Phase 재사용 매핑
 
-| PoC | 참고할 패턴 | 관련 Phase |
-|---|---|---|
-| `mvc` | Model/View/Controller 분리, View 인터페이스(IView)로 Controller 테스트 시 stub 처리 | Phase 1, 2, 3 |
-| `json_crud` | JSON atomic write, 경로 기반 CRUD, 변경 이력(History) 기록 방식 | Phase 1(영속성 계층), 2, 3 |
-| `datamon` | 읽기 전용 조회 세션 구성 방식 | Phase 7(모니터링) |
-| `DummyDataGenerator-djdj07` | 테스트용 더미 데이터 생성 방식(스키마 기반 valid/invalid, edge 케이스) | 각 Phase의 테스트 데이터 준비 시 참고 |
+각 PoC 경로의 코드를 semi 프로젝트로 직접 이식(porting)하여 재사용한다. 아래는 어느 PoC의 코드를 어느 Phase에서 가져올지에 대한 매핑이다.
+
+| PoC | 경로 | 재사용할 코드 | 관련 Phase |
+|---|---|---|---|
+| `mvc` | `C:\Users\User\mvc` | Model/View/Controller 골격, View 인터페이스(IView) 및 stub 처리 방식 | Phase 1, 2, 3 |
+| `json_crud` | `C:\Users\User\json_crud` | JSON atomic write(`JsonDocument`), 경로 기반 CRUD, 변경 이력(History) 기록 코드 | Phase 1(영속성 계층), 2, 3 |
+| `datamon` | `C:\Users\User\datamon` | 읽기 전용 조회 세션(모니터링) 구성 코드 | Phase 7(모니터링) |
+| `DummyDataGenerator-djdj07` | `C:\Users\User\DummyDataGenerator-djdj07` | 스키마 기반 더미 데이터 생성기(valid/invalid, edge 케이스) 코드 | 각 Phase의 테스트 데이터 준비 시 |
+
+> 각 PoC의 코드를 그대로 복사한 뒤 semi 프로젝트의 네임스페이스/도메인(Sample/Order)에 맞게 수정하는 순서로 진행한다. Phase 착수 시 설계 문서(`docs/design/phaseN.md`)에 "어느 파일을 어디서 가져와 무엇을 수정했는지"를 기록한다.
 
 ## 미결 사항 (착수 전 확인 필요)
 
