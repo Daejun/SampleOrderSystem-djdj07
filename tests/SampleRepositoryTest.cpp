@@ -151,6 +151,82 @@ TEST(SampleRepositoryTest, SearchMatchesByProductionTimeAndYield) {
     EXPECT_EQ(byYield[0].id, "S-102");
 }
 
+// Phase 12: search()의 4항 OR(id/name/avgTime/yield)에서 각 항이 "다른 항은 매치하지 않는 상태에서"
+// 단독으로 매치를 결정하는지 독립적으로 확인한다 (라인 커버리지만으로는 이 구분이 드러나지 않음, log/phase11.md 참고).
+struct SearchFieldCase {
+    std::string description;
+    std::string keyword;
+    bool expectMatch;
+};
+
+// gtest 기본 프린터가 구조체를 바이트 덤프로 출력해 ctest 테스트 이름이 지저분해지는 것을 막기 위해
+// description을 사람이 읽을 수 있는 표현으로 노출한다.
+void PrintTo(const SearchFieldCase& c, std::ostream* os) { *os << c.description; }
+
+class SampleSearchFieldTest : public ::testing::TestWithParam<SearchFieldCase> {};
+
+TEST_P(SampleSearchFieldTest, MatchesExpectedFieldIndependently) {
+    const auto& tc = GetParam();
+    static int counter = 0;
+    const auto path = tempFile("repo_search_field_" + std::to_string(counter++) + ".json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository repo(store);
+    ASSERT_TRUE(repo.registerSample({"S-001", "Silicon", 1.25, 0.75, 0}).success);
+
+    const auto result = repo.search(tc.keyword);
+
+    EXPECT_EQ(!result.empty(), tc.expectMatch) << tc.description;
+}
+
+INSTANTIATE_TEST_SUITE_P(EachFieldIndependently, SampleSearchFieldTest, ::testing::Values(
+    SearchFieldCase{"id만 매치", "s-001", true},
+    SearchFieldCase{"name만 매치", "silic", true},
+    SearchFieldCase{"avgTime만 매치", "1.25", true},
+    SearchFieldCase{"yield만 매치", "0.75", true},
+    SearchFieldCase{"어느 것도 매치 안 함", "zzz", false}
+), [](const ::testing::TestParamInfo<SearchFieldCase>& info) {
+    return "Case" + std::to_string(info.index);
+});
+
+// Phase 12: registerSample()의 avgProductionTimeMinutes<=0.0, yield<=0.0||yield>1.0 검증을
+// dummygen 무작위 생성이 아닌 의도적으로 고른 경계값으로 각 조건을 독립적으로 확인한다.
+struct RegisterBoundaryCase {
+    std::string description;
+    double avgProductionTimeMinutes;
+    double yield;
+    bool expectSuccess;
+};
+
+void PrintTo(const RegisterBoundaryCase& c, std::ostream* os) { *os << c.description; }
+
+class SampleRegisterBoundaryTest : public ::testing::TestWithParam<RegisterBoundaryCase> {};
+
+TEST_P(SampleRegisterBoundaryTest, MatchesExpectedOutcome) {
+    const auto& tc = GetParam();
+    static int counter = 0;
+    const auto path = tempFile("repo_register_boundary_" + std::to_string(counter++) + ".json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository repo(store);
+
+    const auto result = repo.registerSample({"S-001", "A", tc.avgProductionTimeMinutes, tc.yield, 0});
+
+    EXPECT_EQ(result.success, tc.expectSuccess) << tc.description;
+}
+
+INSTANTIATE_TEST_SUITE_P(BoundaryValues, SampleRegisterBoundaryTest, ::testing::Values(
+    RegisterBoundaryCase{"avgTime 정확히 0 -> 거부", 0.0, 0.5, false},
+    RegisterBoundaryCase{"avgTime 음수 -> 거부", -1.0, 0.5, false},
+    RegisterBoundaryCase{"avgTime 유효, yield 정확히 0 -> 거부(첫 항 거짓, 둘째 항이 참을 결정)", 1.0, 0.0, false},
+    RegisterBoundaryCase{"avgTime 유효, yield 음수 -> 거부", 1.0, -0.5, false},
+    RegisterBoundaryCase{"yield 정확히 1.0 -> 유효(경계값 포함)", 1.0, 1.0, true},
+    RegisterBoundaryCase{"yield 1.0 초과 -> 거부(둘째 항 거짓, 셋째 항이 참을 결정)", 1.0, 1.5, false},
+    RegisterBoundaryCase{"모두 유효 범위 -> 성공", 2.0, 0.75, true}
+), [](const ::testing::TestParamInfo<RegisterBoundaryCase>& info) {
+    return "Case" + std::to_string(info.index);
+});
+
 TEST(SampleRepositoryTest, SetStockUpdatesExistingSample) {
     const auto path = tempFile("repo_set_stock.json");
     sampleorder::JsonStore store(path);

@@ -204,6 +204,39 @@ TEST(ProductionQueueTest, CompletesImmediatelyOnRestartAfterCompletionTimePassed
     EXPECT_EQ(sample->stock, 30);  // productionQuantity = ceil(30 / 1.0) = 30
 }
 
+// Phase 12: `!completesAt.has_value() || now < *completesAt`의 첫 항은 정상 흐름에서는 productionStartedAtEpochSec와
+// 항상 함께 저장되므로 참이 될 수 없는 방어적 분기다 — 손상된 데이터(생산 시작은 됐는데 완료 시각이 없음)를
+// 직접 store에 심어 이 항이 참이 되는 경로를 확인한다.
+TEST(ProductionQueueTest, SkipsOrderMissingCompletionTimeDespiteHavingStarted) {
+    const auto path = tempFile("pq_corrupted_missing_completion.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 1.0, 1.0, 0}).success);
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    store.orders().push_back({
+        {"orderNumber", "ORD-CORRUPT-0001"},
+        {"sampleId", "S-001"},
+        {"customerName", "고객A"},
+        {"quantity", 10},
+        {"shortageQuantity", 10},
+        {"productionQuantity", 10},
+        {"status", "PRODUCING"},
+        {"productionStartedAtEpochSec", 0},
+        {"productionCompletesAtEpochSec", nullptr}
+    });
+    store.save();
+
+    ProductionQueue queue(store, sampleRepo, orderRepo, testdata::fixedClock);
+
+    EXPECT_NO_THROW(queue.advance());  // 완료 시각이 없으므로 건너뛰고, 활성 생산으로 간주되어 다음 시작도 없음
+
+    const auto found = orderRepo.find("ORD-CORRUPT-0001");
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found->status, OrderStatus::PRODUCING);  // 상태 변경 없이 그대로 유지
+}
+
 // ---------------------------------------------------------------------------
 // 아래는 tc.md의 재고/타이밍 시나리오 매트릭스를 일반화한 테스트다. 각 테스트 상단 주석의
 // TC ID는 tc.md의 해당 표 항목과 1:1로 대응된다.

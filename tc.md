@@ -2,14 +2,16 @@
 
 이 문서는 이 프로젝트에 실제로 구현되어 있는 모든 gtest 테스트 케이스의 목록(1부)과, 그중 승인
 (`OrderRepository::approve`)·생산 큐(`ProductionQueue::advance`)의 동작을 "초기 재고량"과 "주문
-도착/승인 타이밍"의 조합으로 일반화한 시나리오 상세(2부)로 구성된다. 2부는 `PLAN.md`의 Phase 4·5
-생산 규칙과 `prd.md` §4.5(주문 승인/거절), §4.6(생산라인)을 근거로 하며, 실제 코드를 그대로 실행해
-값을 검증했다.
+도착/승인 타이밍"의 조합으로 일반화한 시나리오 상세(2부), 그리고 소스 전체의 `||`/`&&` 다중 조건
+분기를 전수 조사해 각 조건의 참/거짓 양쪽 경로를 독립적으로 검증하는 분기 커버리지 매트릭스(3부)로
+구성된다. 2부는 `PLAN.md`의 Phase 4·5 생산 규칙과 `prd.md` §4.5(주문 승인/거절), §4.6(생산라인)을
+근거로 하며, 3부는 Phase 12(`docs/design/phase12.md`)에서 도입한 `gcov -b`(분기 계측) 결과를
+근거로 한다. 모두 실제 코드를 그대로 실행해 값을 검증했다.
 
-## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~11, 87개)
+## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~12, 102개)
 
-`bash scripts/build.sh` 기준 최신 실행 결과: **87/87 통과**. 파일별로 정리했다. (Phase 9·10은 새 테스트
-추가 없는 클린업/버그 수정이라 테스트 수 변화 없음 — `log/phase9.md`, `log/phase10.md` 참고.)
+`bash scripts/build.sh` 기준 최신 실행 결과: **102/102 통과**. 파일별로 정리했다. (Phase 9·10은 새
+테스트 추가 없는 클린업/버그 수정이라 테스트 수 변화 없음 — `log/phase9.md`, `log/phase10.md` 참고.)
 
 ### `PlaceholderTest.cpp` — Phase 1 (빌드 확인용)
 
@@ -23,6 +25,8 @@
 |---|---|
 | `JsonStoreTest.BootstrapsWhenFileMissing` | `data.json` 파일이 없으면 `{"samples":[],"orders":[]}`로 자동 생성 |
 | `JsonStoreTest.LoadsExistingFile` | 기존 파일이 있으면 그대로 로드 |
+| `JsonStoreTest.RepairsMissingSamplesKeyInExistingFile` | 파일은 있지만 `samples` 키 자체가 없으면 빈 배열로 보정 — Phase 12 (3부 참고) |
+| `JsonStoreTest.RepairsWrongTypeSamplesFieldInExistingFile` | `samples` 필드가 배열이 아닌 타입이면 빈 배열로 보정 — Phase 12 (3부 참고) |
 | `JsonStoreTest.SaveThenReloadRoundTrips` | 저장 후 재로드 시 데이터가 그대로 유지(라운드트립) |
 
 ### `SampleRepositoryTest.cpp` — Phase 2/5 (시료 CRUD, 재고 조작)
@@ -34,6 +38,8 @@
 | `RejectsRangeViolationsFromDummyInvalidSet` | dummygen invalid 세트 중 생산시간≤0/수율 범위 밖 케이스 거부 |
 | `SearchMatchesPartialCaseInsensitive` | id/name 등 부분 일치·대소문자 무시 검색 |
 | `SearchMatchesByProductionTimeAndYield` | avgProductionTimeMinutes/yield 수치형 필드 값으로도 검색 매치(교차 오탐 없음) — Phase 11 보강 |
+| `SampleSearchFieldTest.MatchesExpectedFieldIndependently` (`TEST_P`, 5케이스) | `search()`의 4항 OR(id/name/avgTime/yield) 각각이 **다른 항은 거짓인 상태에서** 단독으로 매치를 결정하는지 확인 — Phase 12 (3부 참고) |
+| `SampleRegisterBoundaryTest.MatchesExpectedOutcome` (`TEST_P`, 7케이스) | `registerSample()`의 `avgTime<=0`, `yield<=0\|\|yield>1.0` 각 조건을 의도적으로 고른 경계값(정확히 0/음수/정확히 1.0/1.0 초과)으로 독립 검증 — Phase 12 (3부 참고) |
 | `SetStockUpdatesExistingSample` | `setStock`으로 재고 절대값 설정 |
 | `SetStockReturnsFalseForUnknownId` | 존재하지 않는 id에 대한 `setStock`은 false |
 | `PersistsAcrossReload` | 등록 후 재시작해도 조회 가능(영속화) |
@@ -135,6 +141,7 @@
 | `TC4_ThreeOrdersMaintainStrictFifoOrderWithoutMerging` | 대기 주문 3건의 FIFO 순차 처리 (2부 TC-4) |
 | `TC5_ProductionQuantityRoundsUpForNonDivisibleShortage` | 수율 나눗셈 ceil 올림 (2부 TC-5) |
 | `TC6_RestartAfterCompletionTimePersistsConfirmedStateToRawJsonFile` | 재시작 후 완료 상태의 원본 파일 영속화 확인 (2부 TC-6) |
+| `SkipsOrderMissingCompletionTimeDespiteHavingStarted` | 생산은 시작됐지만 완료 시각이 없는 손상된 주문 데이터를 직접 심어, 예외 없이 건너뛰는지 확인 — Phase 12 (3부 참고) |
 
 ### `MonitoringServiceTest.cpp` — Phase 7 (주문량/재고량 집계)
 
@@ -266,3 +273,57 @@ ctest --test-dir build --output-on-failure -R "ProductionQueueTest|OrderReposito
 - 대칭적으로 "재고가 정확히 0인" 극단값은 TC-2/TC-4/TC-5/TC-6에서 이미 다뤄짐.
 - "여러 시료(Sample)에 걸친 동시 생산" 케이스는 다루지 않음 — `prd.md` §3.4에서 생산 라인은 단일 라인이며, 재고/생산 큐는 시료 단위가 아니라 전체 주문 단위로 공유되는 하나의 큐이므로 시료가 달라도 큐 자체는 하나다(범위 밖 아님, 다만 이번 카탈로그에서 별도 케이스로 다루지는 않음).
 - 승인 자체가 거부되는 케이스(존재하지 않는 시료/주문번호, 이미 처리된 주문 재승인 등)는 Phase 4 테스트(`OrderRepositoryTest`)에서 이미 다루고 있어 이 카탈로그에서는 재고/타이밍 조합에 집중했다.
+
+## 3부. 분기/조건 커버리지 매트릭스 (Phase 12)
+
+`gcov` **라인** 커버리지는 "그 줄이 실행됐는가"만 세므로, `||`/`&&` 다중 조건 분기에서 "각 조건이
+독립적으로 참/거짓을 결정했는가"는 드러나지 않는다(`log/phase11.md` "발견한 사항" 참고). Phase 12는
+`src/` 전체의 `||`/`&&` 표현식을 전수 조사해 우선순위별로 정리하고, 각 조건의 양쪽 경로를 실제로
+실행시키는 테스트를 보강했다. 근거는 `scripts/coverage.sh`(`gcov -b`)의 `.gcov` `branch ... taken`
+출력이다 (상세 수치는 `log/phase12.md` 참고).
+
+### 우선순위 1 — 검색 매칭(`SampleRepository::search`)
+
+| 위치 | 조건식 | 대응 테스트 |
+|---|---|---|
+| `SampleRepository.cpp:99` | `id 매치` | `SampleSearchFieldTest.MatchesExpectedFieldIndependently/Case0`("id만 매치") |
+| `SampleRepository.cpp:100` | `\|\| name 매치` | 위 테스트 `Case1`("name만 매치") |
+| `SampleRepository.cpp:101` | `\|\| avgTime 매치` | 위 테스트 `Case2`("avgTime만 매치") |
+| `SampleRepository.cpp:102` | `\|\| yield 매치` | 위 테스트 `Case3`("yield만 매치") |
+| (전체 거짓) | 4항 모두 불일치 | 위 테스트 `Case4`("어느 것도 매치 안 함") |
+
+### 우선순위 2 — 검증 체인(`SampleRepository::registerSample`)
+
+| 위치 | 조건식 | 대응 테스트 |
+|---|---|---|
+| `SampleRepository.cpp:43` | `avgTime <= 0.0` (참/거짓 각각) | `SampleRegisterBoundaryTest.../Case0`(정확히 0), `Case1`(음수), 그 외 케이스들(거짓 쪽) |
+| `SampleRepository.cpp:46` | `yield <= 0.0` (참/거짓 각각) | `Case2`(정확히 0), `Case3`(음수) vs `Case4`~`Case6`(거짓 쪽) |
+| `SampleRepository.cpp:46` | `\|\| yield > 1.0` (참/거짓 각각) | `Case5`(1.0 초과, 참) vs `Case4`(정확히 1.0, 거짓 — 경계값 포함 확인) |
+
+### 우선순위 3 — 방어적 분기(손상/레거시 데이터)
+
+| 위치 | 조건식 | 대응 테스트 |
+|---|---|---|
+| `ProductionQueue.cpp:31` | `!completesAt.has_value()` (정상 흐름에서는 항상 거짓, 손상 데이터에서만 참) | `ProductionQueueTest.SkipsOrderMissingCompletionTimeDespiteHavingStarted` |
+| `JsonStore.cpp:15` | `!root.contains(key)` (파일에 키 자체가 없음) | `JsonStoreTest.RepairsMissingSamplesKeyInExistingFile` |
+| `JsonStore.cpp:15` | `\|\| !root[key].is_array()` (키는 있지만 타입이 배열이 아님) | `JsonStoreTest.RepairsWrongTypeSamplesFieldInExistingFile` |
+
+### `gcov -b` 실행 결과 요약 (양쪽 경로 실행 여부)
+
+| 위치 | 참 경로 실행 | 거짓 경로 실행 |
+|---|---|---|
+| `SampleRepository.cpp:43` (avgTime<=0) | O (4%) | O (96%) |
+| `SampleRepository.cpp:46` (yield<=0) | O (4%) | O (96%) |
+| `SampleRepository.cpp:46` (yield>1.0) | O (4%) | O (96%) |
+| `SampleRepository.cpp:99-102` (각 OR 항) | O (각 12~21%) | O (나머지) |
+| `ProductionQueue.cpp:31` (!completesAt.has_value()) | O (7%) | O (93%) |
+| `JsonStore.cpp:15` (!contains(key)) | O (5%) | O (95%) |
+| `JsonStore.cpp:15` (!is_array()) | O | O |
+
+### 검토했지만 보강하지 않은 것
+
+| 위치 | 조건식 | 사유 |
+|---|---|---|
+| `OrderInput.cpp:11` | `pos != raw.size() \|\| value <= 0` | 기존 `RejectsZero`/`RejectsNegative` vs `RejectsTrailingGarbage`로 이미 두 항이 독립 분리되어 검증됨 |
+| `OrderJson.cpp:31,34` | `contains(...) && !is_null()` | 레거시 호환 테스트와 정상 라운드트립 테스트에 걸쳐 이미 자연스럽게 분산 |
+| `OrderController.cpp:8,21` | `result.success && result.order.has_value()` | 현재 구현상 두 항이 독립적으로 변하지 않는 방어적 코드(실질적 분기 아님) |

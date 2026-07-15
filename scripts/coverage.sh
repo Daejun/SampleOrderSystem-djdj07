@@ -17,6 +17,6 @@ ctest --test-dir build-coverage --output-on-failure
 cd build-coverage
 # .gcda가 생성된 각 디렉토리를 찾아 -o로 지정, 소스 상대경로 유지(-p)로 gcov 실행
 find . -name '*.gcda' -exec dirname {} \; | sort -u | while read -r dir; do
-    gcov -p -o "$dir" "$dir"/*.gcda >/dev/null
+    gcov -b -p -o "$dir" "$dir"/*.gcda >/dev/null
 done
 echo "커버리지 리포트(.gcov)가 build-coverage/ 에 생성되었습니다."
