@@ -81,6 +81,7 @@
 - **목표**: CONFIRMED 상태 주문의 출고(RELEASE) 처리
 - **범위**: CONFIRMED 주문만 출고 가능하도록 제한, 출고 실행 시 RELEASE 전환
 - **완료 기준**: CONFIRMED 외 상태 출고 시도 시 거부되는지, 출고 후 RELEASE로 전환되는지 테스트 통과
+- **구현 완료** (`log/phase6.md` 참고): `OrderRepository::release()` 추가(approve/reject와 동일한 단일 저장 구조), `OrderController::releaseOrder`/`listConfirmedOrders` 추가, `MainController` "6" 선택 시 출고 하위 메뉴 연결(생성자 변경 없음).
 
 ## Phase 7 — 모니터링
 

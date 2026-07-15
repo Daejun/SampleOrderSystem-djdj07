@@ -295,6 +295,103 @@ TEST(OrderRepositoryTest, ApprovalPersistsAcrossReload) {
     EXPECT_EQ(sample->stock, 0);
 }
 
+TEST(OrderRepositoryTest, ReleaseTransitionsConfirmedToReleaseWithoutStockChange) {
+    const auto path = tempFile("order_release.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 500));
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    const auto reserved = orderRepo.reserve("S-001", "고객A", 200);
+    ASSERT_TRUE(orderRepo.approve(reserved.order->orderNumber).success);  // 재고 충분 -> CONFIRMED, 재고 300
+
+    const auto released = orderRepo.release(reserved.order->orderNumber);
+
+    ASSERT_TRUE(released.success);
+    ASSERT_TRUE(released.order.has_value());
+    EXPECT_EQ(released.order->status, OrderStatus::RELEASE);
+
+    auto sample = sampleRepo.find("S-001");
+    ASSERT_TRUE(sample.has_value());
+    EXPECT_EQ(sample->stock, 300);  // 출고는 재고를 다시 건드리지 않음 (승인 시점에 이미 반영)
+}
+
+TEST(OrderRepositoryTest, RejectsReleaseOfNonConfirmedOrders) {
+    const auto path = tempFile("order_release_invalid_states.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 500));
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    // RESERVED 상태에서 출고 시도 거부
+    const auto reserved = orderRepo.reserve("S-001", "고객A", 10);
+    EXPECT_FALSE(orderRepo.release(reserved.order->orderNumber).success);
+
+    // REJECTED 상태에서 출고 시도 거부
+    ASSERT_TRUE(orderRepo.reject(reserved.order->orderNumber).success);
+    EXPECT_FALSE(orderRepo.release(reserved.order->orderNumber).success);
+
+    // PRODUCING 상태에서 출고 시도 거부
+    const auto shortageOrder = orderRepo.reserve("S-001", "고객B", 10000);
+    ASSERT_EQ(orderRepo.approve(shortageOrder.order->orderNumber).order->status, OrderStatus::PRODUCING);
+    EXPECT_FALSE(orderRepo.release(shortageOrder.order->orderNumber).success);
+
+    // 이미 RELEASE된 주문 재출고 시도 거부
+    // (직전 shortageOrder 승인 시 재고가 0으로 소진되었으므로, CONFIRMED로 승인되도록 재고를 다시 채운다)
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 500));
+    const auto confirmedOrder = orderRepo.reserve("S-001", "고객C", 50);
+    ASSERT_EQ(orderRepo.approve(confirmedOrder.order->orderNumber).order->status, OrderStatus::CONFIRMED);
+    ASSERT_TRUE(orderRepo.release(confirmedOrder.order->orderNumber).success);
+    EXPECT_FALSE(orderRepo.release(confirmedOrder.order->orderNumber).success);
+}
+
+TEST(OrderRepositoryTest, ReleaseUnknownOrderNumberFails) {
+    const auto path = tempFile("order_release_unknown.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    const auto result = orderRepo.release("ORD-NOTFOUND-0001");
+
+    EXPECT_FALSE(result.success);
+}
+
+TEST(OrderRepositoryTest, ReleasePersistsAcrossReload) {
+    const auto path = tempFile("order_release_persist.json");
+    std::string orderNumber;
+    {
+        sampleorder::JsonStore store(path);
+        store.ensureLoaded();
+        SampleRepository sampleRepo(store);
+        ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+        ASSERT_TRUE(sampleRepo.setStock("S-001", 500));
+        OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+        const auto reserved = orderRepo.reserve("S-001", "고객A", 200);
+        orderNumber = reserved.order->orderNumber;
+        ASSERT_TRUE(orderRepo.approve(orderNumber).success);
+        ASSERT_TRUE(orderRepo.release(orderNumber).success);
+    }
+
+    sampleorder::JsonStore reloaded(path);
+    reloaded.ensureLoaded();
+    SampleRepository sampleRepo(reloaded);
+    OrderRepository orderRepo(reloaded, sampleRepo, testdata::fixedClock);
+
+    const auto found = orderRepo.find(orderNumber);
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found->status, OrderStatus::RELEASE);
+
+    const auto sample = sampleRepo.find("S-001");
+    ASSERT_TRUE(sample.has_value());
+    EXPECT_EQ(sample->stock, 300);
+}
+
 TEST(OrderRepositoryTest, PersistsAcrossReload) {
     const auto path = tempFile("order_persist.json");
     {

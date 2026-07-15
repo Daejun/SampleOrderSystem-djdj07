@@ -135,6 +135,25 @@ OrderRepository::RejectResult OrderRepository::reject(const std::string& orderNu
     return {false, "존재하지 않는 주문번호입니다: " + orderNumber};
 }
 
+OrderRepository::ReleaseResult OrderRepository::release(const std::string& orderNumber) {
+    for (auto& item : store_.orders()) {
+        if (item.at("orderNumber").get<std::string>() != orderNumber) {
+            continue;
+        }
+
+        Order order = orderFromJson(item);
+        if (order.status != OrderStatus::CONFIRMED) {
+            return {false, "출고 가능한(CONFIRMED) 상태가 아닙니다: " + orderNumber, std::nullopt};
+        }
+
+        order.status = OrderStatus::RELEASE;
+        item = orderToJson(order);
+        store_.save();
+        return {true, "", order};
+    }
+    return {false, "존재하지 않는 주문번호입니다: " + orderNumber, std::nullopt};
+}
+
 std::optional<Order> OrderRepository::find(const std::string& orderNumber) const {
     for (const auto& item : store_.orders()) {
         if (item.at("orderNumber").get<std::string>() == orderNumber) {

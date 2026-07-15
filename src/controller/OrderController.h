@@ -14,6 +14,8 @@ public:
     void approveOrder(const std::string& orderNumber);
     void rejectOrder(const std::string& orderNumber);
     void listReservedOrders();
+    void releaseOrder(const std::string& orderNumber);
+    void listConfirmedOrders();
 
 private:
     OrderRepository& repository_;

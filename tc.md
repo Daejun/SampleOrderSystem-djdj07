@@ -6,9 +6,9 @@
 생산 규칙과 `prd.md` §4.5(주문 승인/거절), §4.6(생산라인)을 근거로 하며, 실제 코드를 그대로 실행해
 값을 검증했다.
 
-## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~5, 53개)
+## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~6, 60개)
 
-`bash scripts/build.sh` 기준 최신 실행 결과: **53/53 통과**. 파일별로 정리했다.
+`bash scripts/build.sh` 기준 최신 실행 결과: **60/60 통과**. 파일별로 정리했다.
 
 ### `PlaceholderTest.cpp` — Phase 1 (빌드 확인용)
 
@@ -56,7 +56,7 @@
 | `RejectsNonNumeric` | 숫자가 아닌 입력 거부 |
 | `RejectsTrailingGarbage` | 뒤에 불필요한 문자가 붙은 입력 거부 |
 
-### `OrderRepositoryTest.cpp` — Phase 3/4/5 (주문 예약·승인·거절)
+### `OrderRepositoryTest.cpp` — Phase 3/4/5/6 (주문 예약·승인·거절·출고)
 
 | 테스트 | 검증 내용 |
 |---|---|
@@ -73,9 +73,13 @@
 | `ApproveUnknownOrderNumberFails` | 존재하지 않는 주문번호 승인 실패 |
 | `ListByStatusReturnsOnlyMatchingOrders` | 상태별 필터링 조회(RESERVED/CONFIRMED 등) |
 | `ApprovalPersistsAcrossReload` | 승인 후 재시작해도 상태·부족분·재고 유지 |
+| `ReleaseTransitionsConfirmedToReleaseWithoutStockChange` | 출고 시 CONFIRMED→RELEASE 전환, 재고 변경 없음(승인 시점에 이미 반영) |
+| `RejectsReleaseOfNonConfirmedOrders` | RESERVED/REJECTED/PRODUCING/이미 RELEASE 상태의 주문 출고 거부 |
+| `ReleaseUnknownOrderNumberFails` | 존재하지 않는 주문번호 출고 실패 |
+| `ReleasePersistsAcrossReload` | 출고 후 재시작해도 RELEASE 상태·재고 유지 |
 | `PersistsAcrossReload` | 예약(RESERVED) 후 재시작해도 조회 가능 |
 
-### `OrderControllerTest.cpp` — Phase 3/4 (Controller ↔ View 위임)
+### `OrderControllerTest.cpp` — Phase 3/4/6 (Controller ↔ View 위임)
 
 | 테스트 | 검증 내용 |
 |---|---|
@@ -86,6 +90,9 @@
 | `ApproveUnknownOrderShowsError` | 존재하지 않는 주문 승인 시 오류 전달 |
 | `RejectOrderShowsSuccessMessage` | 거절 성공 메시지 전달 |
 | `ListReservedOrdersForwardsOnlyReservedToView` | RESERVED만 필터링해 View에 전달 |
+| `ReleaseOrderShowsSuccessMessage` | 출고 성공 메시지 전달 |
+| `ReleaseNonConfirmedOrderShowsError` | CONFIRMED가 아닌 주문 출고 시도 시 오류 전달 |
+| `ListConfirmedOrdersForwardsOnlyConfirmedToView` | CONFIRMED만 필터링해 View에 전달(출고 완료된 주문은 제외) |
 
 ### `ProductionQueueTest.cpp` — Phase 5 (생산 큐)
 

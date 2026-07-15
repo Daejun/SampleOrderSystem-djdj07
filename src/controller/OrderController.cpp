@@ -41,3 +41,16 @@ void OrderController::rejectOrder(const std::string& orderNumber) {
 void OrderController::listReservedOrders() {
     view_.showOrders(repository_.listByStatus(OrderStatus::RESERVED));
 }
+
+void OrderController::releaseOrder(const std::string& orderNumber) {
+    const auto result = repository_.release(orderNumber);
+    if (result.success) {
+        view_.showMessage("출고 처리 완료: " + orderNumber);
+    } else {
+        view_.showError(result.errorMessage);
+    }
+}
+
+void OrderController::listConfirmedOrders() {
+    view_.showOrders(repository_.listByStatus(OrderStatus::CONFIRMED));
+}

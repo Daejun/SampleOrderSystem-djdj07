@@ -148,3 +148,66 @@ TEST(OrderControllerTest, ListReservedOrdersForwardsOnlyReservedToView) {
     ASSERT_EQ(view.lastOrders.size(), 1u);
     EXPECT_EQ(view.lastOrders[0].customerName, "고객B");
 }
+
+TEST(OrderControllerTest, ReleaseOrderShowsSuccessMessage) {
+    const auto path = tempFile("controller_order_release.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 500));
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+    StubView view;
+    OrderController controller(orderRepo, view);
+
+    controller.reserveOrder("S-001", "고객A", 10);
+    const auto orderNumber = orderRepo.list().front().orderNumber;
+    controller.approveOrder(orderNumber);
+
+    controller.releaseOrder(orderNumber);
+
+    EXPECT_TRUE(view.lastError.empty());
+    EXPECT_FALSE(view.lastMessage.empty());
+}
+
+TEST(OrderControllerTest, ReleaseNonConfirmedOrderShowsError) {
+    const auto path = tempFile("controller_order_release_invalid.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+    StubView view;
+    OrderController controller(orderRepo, view);
+
+    controller.reserveOrder("S-001", "고객A", 10);
+    const auto orderNumber = orderRepo.list().front().orderNumber;
+
+    controller.releaseOrder(orderNumber);  // 아직 RESERVED 상태
+
+    EXPECT_FALSE(view.lastError.empty());
+}
+
+TEST(OrderControllerTest, ListConfirmedOrdersForwardsOnlyConfirmedToView) {
+    const auto path = tempFile("controller_order_confirmed_list.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 500));
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+    StubView view;
+    OrderController controller(orderRepo, view);
+
+    controller.reserveOrder("S-001", "고객A", 10);
+    controller.reserveOrder("S-001", "고객B", 20);
+    const auto orders = orderRepo.list();
+    controller.approveOrder(orders[0].orderNumber);
+    controller.approveOrder(orders[1].orderNumber);
+    controller.releaseOrder(orders[0].orderNumber);  // 첫 번째는 출고까지 완료 -> CONFIRMED 목록에서 제외되어야 함
+
+    controller.listConfirmedOrders();
+
+    ASSERT_EQ(view.lastOrders.size(), 1u);
+    EXPECT_EQ(view.lastOrders[0].customerName, "고객B");
+}

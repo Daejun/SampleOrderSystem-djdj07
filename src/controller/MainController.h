@@ -19,6 +19,7 @@ private:
     void runSampleMenu();
     void runOrderMenu();
     void runApprovalMenu();
+    void runReleaseMenu();
 
     IView& view_;
     SampleController& sampleController_;

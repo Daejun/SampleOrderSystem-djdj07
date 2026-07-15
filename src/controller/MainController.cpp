@@ -34,6 +34,14 @@ void printApprovalMenu() {
     std::printf("선택 > ");
 }
 
+void printReleaseMenu() {
+    std::printf("\n--- 출고 처리 ---\n");
+    std::printf("[1] 출고 대상 주문 목록 (CONFIRMED)\n");
+    std::printf("[2] 출고 처리\n");
+    std::printf("[0] 뒤로가기\n");
+    std::printf("선택 > ");
+}
+
 }  // namespace
 
 MainController::MainController(IView& view, SampleController& sampleController, OrderController& orderController,
@@ -55,7 +63,7 @@ void MainController::handleSelection(const std::string& input) {
     } else if (input == "5") {
         productionController_.showStatus();
     } else if (input == "6") {
-        view_.showMessage("[출고 처리] 미구현입니다.");
+        runReleaseMenu();
     } else if (input == "0") {
         exitRequested_ = true;
     } else {
@@ -164,6 +172,29 @@ void MainController::runApprovalMenu() {
             std::printf("주문번호 > ");
             std::getline(std::cin, orderNumber);
             orderController_.rejectOrder(orderNumber);
+        } else if (line == "0") {
+            return;
+        } else {
+            view_.showError("알 수 없는 선택입니다: " + line);
+        }
+    }
+}
+
+void MainController::runReleaseMenu() {
+    std::string line;
+    while (true) {
+        printReleaseMenu();
+        if (!std::getline(std::cin, line)) {
+            return;
+        }
+
+        if (line == "1") {
+            orderController_.listConfirmedOrders();
+        } else if (line == "2") {
+            std::string orderNumber;
+            std::printf("주문번호 > ");
+            std::getline(std::cin, orderNumber);
+            orderController_.releaseOrder(orderNumber);
         } else if (line == "0") {
             return;
         } else {

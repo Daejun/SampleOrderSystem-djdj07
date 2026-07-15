@@ -31,6 +31,12 @@ public:
         std::string errorMessage;
     };
 
+    struct ReleaseResult {
+        bool success;
+        std::string errorMessage;
+        std::optional<Order> order;
+    };
+
     OrderRepository(sampleorder::JsonStore& store, SampleRepository& sampleRepository,
                      Clock clock = &std::chrono::system_clock::now);
 
@@ -44,6 +50,10 @@ public:
 
     // 실패 사유: 존재하지 않는 주문번호, 이미 RESERVED가 아닌 주문. 재고는 변경하지 않는다.
     RejectResult reject(const std::string& orderNumber);
+
+    // 실패 사유: 존재하지 않는 주문번호, CONFIRMED가 아닌 주문. 재고는 변경하지 않는다
+    // (Phase 4에서 승인 시점에 이미 반영 완료).
+    ReleaseResult release(const std::string& orderNumber);
 
     std::optional<Order> find(const std::string& orderNumber) const;
     std::vector<Order> list() const;
