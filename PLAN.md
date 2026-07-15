@@ -115,6 +115,7 @@
 - **목표**: 새 기능 추가 없이 콘솔 코드페이지를 UTF-8로 고정해 한글이 항상 올바르게 표시되도록 한다.
 - **범위**: `main.cpp` 진입점에서 `SetConsoleOutputCP`/`SetConsoleCP`(Windows API)로 코드페이지를 UTF-8(65001)로 고정. `#ifdef _WIN32`로 감싸 이식성 유지.
 - **완료 기준**: 기존 70개 테스트 전체 회귀 없이 통과. `chcp 949`로 강제 변경 후 앱 실행 시 콘솔 코드페이지가 65001로 바뀌는지 확인(리다이렉트 캡처로는 mojibake 자체를 재현할 수 없으므로 간접 증거로 대체).
+- **구현 완료** (`log/phase10.md` 참고): `main.cpp`에 `SetConsoleOutputCP`/`SetConsoleCP(CP_UTF8)` 추가. ctest 70/70 회귀 없음. `chcp 949` 강제 후 앱 실행 시 콘솔 코드페이지가 65001로 바뀜을 확인(간접 증거).
 
 이 프로젝트의 마지막 Phase.
 

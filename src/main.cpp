@@ -1,6 +1,10 @@
 #include <iostream>
 #include <string>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "controller/MainController.h"
 #include "controller/MonitoringController.h"
 #include "controller/OrderController.h"
@@ -14,6 +18,11 @@
 #include "view/ConsoleView.h"
 
 int main() {
+#ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);  // 출력: printf로 내보내는 UTF-8 바이트를 올바르게 렌더링
+    SetConsoleCP(CP_UTF8);        // 입력: 고객명/검색어 등 한글 입력도 올바르게 해석
+#endif
+
     sampleorder::JsonStore store("data/data.json");
     store.ensureLoaded();
 
