@@ -20,7 +20,6 @@ int main() {
     SampleRepository sampleRepository(store);
     OrderRepository orderRepository(store, sampleRepository);
     ProductionQueue productionQueue(store, sampleRepository, orderRepository);
-    productionQueue.advance();  // 재시작 시 밀린 생산완료를 즉시 반영
 
     MonitoringService monitoringService(sampleRepository, orderRepository);
 
