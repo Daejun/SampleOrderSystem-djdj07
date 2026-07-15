@@ -25,6 +25,10 @@
 
 - **목표**: 시료 등록/조회/검색 기능 완성
 - **범위**: `Sample` 엔티티, `SampleRepository`(영속화 포함), 등록/조회/검색 Controller·View
+- **설계 시 반드시 확정할 사항 (Phase 1 코드 리뷰에서 발견)**:
+  - **공유 저장소 동시 접근**: `SampleRepository`와 `OrderRepository`(Phase 3)가 동일한 `data.json`을 다룬다. 각자 독립적인 `JsonDocument` 인스턴스로 로드·저장하면 한쪽의 저장이 다른 쪽의 최신 변경을 덮어써 데이터가 유실될 수 있다. 두 Repository가 **하나의 공유 `JsonDocument`(또는 이를 감싸는 `JsonStore`) 인스턴스**를 참조하도록 설계한다.
+  - **최초 실행 부트스트랩**: `data/` 디렉토리는 `.gitignore` 대상이라 최초 실행 시 `data.json`이 존재하지 않는다. 현재 `JsonDocument::load()`는 파일이 없으면 예외를 던지므로, 파일 부재 시 `{"samples":[], "orders":[]}` 형태로 자동 생성하는 로직을 설계에 포함한다.
+  - **Controller 책임 분리 방향**: Phase 1에서 만든 단일 `MainController`를 계속 확장할지, 도메인별(`SampleController` 등)로 분리할지 이번 Phase에서 결정한다. 결정하지 않으면 Phase 3~4를 거치며 `MainController`가 여러 도메인 로직을 떠안는 비대한 클래스가 될 위험이 있다(SRP 위반).
 - **완료 기준**: 시료 등록 후 재시작해도 조회 가능(영속화 확인), 검색 기능 테스트 통과
 
 ## Phase 3 — 주문(Order) 모델 및 예약 접수
