@@ -162,6 +162,30 @@ TEST(OrderRepositoryTest, ApproveWithInsufficientStockZeroesStockAndProduces) {
     EXPECT_EQ(sample->stock, 0);
 }
 
+TEST(OrderRepositoryTest, ApproveExactStockMatchConfirmsWithoutShortage) {
+    const auto path = tempFile("order_approve_exact_match.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 50));
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+
+    const auto reserved = orderRepo.reserve("S-001", "고객A", 50);  // 재고와 주문량이 정확히 같음
+    ASSERT_TRUE(reserved.success);
+
+    const auto approved = orderRepo.approve(reserved.order->orderNumber);
+
+    // 경계값(>=): 재고 == 주문량이면 "부족"이 아니라 "충분" 분기를 타서 생산 없이 즉시 CONFIRMED되어야 한다.
+    ASSERT_TRUE(approved.success);
+    EXPECT_EQ(approved.order->status, OrderStatus::CONFIRMED);
+    EXPECT_EQ(approved.order->shortageQuantity, 0);
+
+    auto sample = sampleRepo.find("S-001");
+    ASSERT_TRUE(sample.has_value());
+    EXPECT_EQ(sample->stock, 0);
+}
+
 TEST(OrderRepositoryTest, RejectTransitionsToRejectedWithoutStockChange) {
     const auto path = tempFile("order_reject.json");
     sampleorder::JsonStore store(path);
