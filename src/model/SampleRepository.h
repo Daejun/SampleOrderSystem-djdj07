@@ -24,6 +24,10 @@ public:
     // id가 존재하지 않으면 false. newStock은 절대값 설정(가감 아님).
     bool setStock(const std::string& id, int newStock);
 
+    // setStock과 동일하나 store_.save()를 호출하지 않는다. 복합 연산(예: ProductionQueue::advance())이
+    // 여러 변경을 모은 뒤 마지막에 한 번만 저장할 수 있도록 한다.
+    bool adjustStockInMemory(const std::string& id, int newStock);
+
 private:
     sampleorder::JsonStore& store_;
 };

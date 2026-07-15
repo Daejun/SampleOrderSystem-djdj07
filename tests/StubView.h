@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,10 @@ public:
     void showSample(const Sample& sample) override { lastSample = sample; }
     void showOrders(const std::vector<Order>& orders) override { lastOrders = orders; }
     void showOrder(const Order& order) override { lastOrder = order; }
+    void showProductionStatus(const std::optional<Order>& active, const std::vector<Order>& waiting) override {
+        lastActiveProduction = active;
+        lastWaitingQueue = waiting;
+    }
 
     std::string lastMessage;
     std::string lastError;
@@ -20,4 +25,6 @@ public:
     Sample lastSample;
     std::vector<Order> lastOrders;
     Order lastOrder;
+    std::optional<Order> lastActiveProduction;
+    std::vector<Order> lastWaitingQueue;
 };

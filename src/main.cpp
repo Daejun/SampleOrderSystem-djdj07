@@ -4,8 +4,10 @@
 
 #include "controller/MainController.h"
 #include "controller/OrderController.h"
+#include "controller/ProductionController.h"
 #include "controller/SampleController.h"
 #include "model/OrderRepository.h"
+#include "model/ProductionQueue.h"
 #include "model/SampleRepository.h"
 #include "persistence/JsonStore.h"
 #include "view/ConsoleView.h"
@@ -32,10 +34,14 @@ int main() {
 
     SampleRepository sampleRepository(store);
     OrderRepository orderRepository(store, sampleRepository);
+    ProductionQueue productionQueue(store, sampleRepository, orderRepository);
+    productionQueue.advance();  // 재시작 시 밀린 생산완료를 즉시 반영
+
     ConsoleView view;
     SampleController sampleController(sampleRepository, view);
     OrderController orderController(orderRepository, view);
-    MainController controller(view, sampleController, orderController);
+    ProductionController productionController(productionQueue, view);
+    MainController controller(view, sampleController, orderController, productionController);
 
     std::string line;
     while (!controller.isExitRequested()) {

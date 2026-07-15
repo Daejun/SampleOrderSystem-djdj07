@@ -10,4 +10,5 @@ public:
     void showSample(const Sample& sample) override;
     void showOrders(const std::vector<Order>& orders) override;
     void showOrder(const Order& order) override;
+    void showProductionStatus(const std::optional<Order>& active, const std::vector<Order>& waiting) override;
 };

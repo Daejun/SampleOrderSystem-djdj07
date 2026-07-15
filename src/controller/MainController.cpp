@@ -36,8 +36,12 @@ void printApprovalMenu() {
 
 }  // namespace
 
-MainController::MainController(IView& view, SampleController& sampleController, OrderController& orderController)
-    : view_(view), sampleController_(sampleController), orderController_(orderController) {}
+MainController::MainController(IView& view, SampleController& sampleController, OrderController& orderController,
+                                ProductionController& productionController)
+    : view_(view),
+      sampleController_(sampleController),
+      orderController_(orderController),
+      productionController_(productionController) {}
 
 void MainController::handleSelection(const std::string& input) {
     if (input == "1") {
@@ -49,7 +53,7 @@ void MainController::handleSelection(const std::string& input) {
     } else if (input == "4") {
         view_.showMessage("[모니터링] 미구현입니다.");
     } else if (input == "5") {
-        view_.showMessage("[생산 라인 조회] 미구현입니다.");
+        productionController_.showStatus();
     } else if (input == "6") {
         view_.showMessage("[출고 처리] 미구현입니다.");
     } else if (input == "0") {

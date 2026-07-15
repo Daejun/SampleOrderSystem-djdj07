@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <optional>
 #include <string>
 
 enum class OrderStatus { RESERVED, REJECTED, PRODUCING, CONFIRMED, RELEASE };
@@ -9,7 +11,10 @@ struct Order {
     std::string sampleId;
     std::string customerName;
     int quantity = 0;
-    int shortageQuantity = 0;  // PRODUCING 전환 시에만 의미 있음, 그 외 0
+    int shortageQuantity = 0;    // PRODUCING 전환 시에만 의미 있음, 그 외 0
+    int productionQuantity = 0;  // 실 생산량 = ceil(shortageQuantity / yield). 생산 시작 시 계산·고정
+    std::optional<std::int64_t> productionStartedAtEpochSec;    // 생산 시작 시각. 대기 중(아직 미시작)이면 nullopt
+    std::optional<std::int64_t> productionCompletesAtEpochSec;  // 예정 완료 시각
     OrderStatus status = OrderStatus::RESERVED;
 };
 

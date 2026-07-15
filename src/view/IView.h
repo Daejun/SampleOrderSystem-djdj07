@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,4 +16,5 @@ public:
     virtual void showSample(const Sample& sample) = 0;
     virtual void showOrders(const std::vector<Order>& orders) = 0;
     virtual void showOrder(const Order& order) = 0;
+    virtual void showProductionStatus(const std::optional<Order>& active, const std::vector<Order>& waiting) = 0;
 };

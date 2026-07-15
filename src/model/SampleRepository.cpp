@@ -75,10 +75,17 @@ std::vector<Sample> SampleRepository::list() const {
 }
 
 bool SampleRepository::setStock(const std::string& id, int newStock) {
+    if (!adjustStockInMemory(id, newStock)) {
+        return false;
+    }
+    store_.save();
+    return true;
+}
+
+bool SampleRepository::adjustStockInMemory(const std::string& id, int newStock) {
     for (auto& item : store_.samples()) {
         if (item.at("id").get<std::string>() == id) {
             item["stock"] = newStock;
-            store_.save();
             return true;
         }
     }

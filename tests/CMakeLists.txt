@@ -15,6 +15,7 @@ add_executable(sample_order_tests
     OrderInputTest.cpp
     OrderRepositoryTest.cpp
     OrderControllerTest.cpp
+    ProductionQueueTest.cpp
     dummygen/DummyGenerator.cpp
     dummygen/SchemaValidator.cpp
 )

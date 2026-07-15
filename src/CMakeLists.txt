@@ -9,10 +9,13 @@ target_compile_features(sample_order_persistence PUBLIC cxx_std_17)
 add_library(sample_order_core
     model/SampleRepository.cpp
     model/OrderRepository.cpp
+    model/OrderJson.cpp
+    model/ProductionQueue.cpp
     view/ConsoleView.cpp
     controller/SampleController.cpp
     controller/OrderController.cpp
     controller/OrderInput.cpp
+    controller/ProductionController.cpp
     controller/MainController.cpp
 )
 target_include_directories(sample_order_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

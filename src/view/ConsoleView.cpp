@@ -40,3 +40,22 @@ void ConsoleView::showOrder(const Order& order) {
     std::printf("[%s] %s x %d ea - %s (%s)\n", order.orderNumber.c_str(), order.sampleId.c_str(),
                 order.quantity, order.customerName.c_str(), orderStatusToString(order.status).c_str());
 }
+
+void ConsoleView::showProductionStatus(const std::optional<Order>& active, const std::vector<Order>& waiting) {
+    if (active.has_value()) {
+        std::printf("현재 생산 중: [%s] %s, 생산량 %d ea\n", active->orderNumber.c_str(),
+                    active->sampleId.c_str(), active->productionQuantity);
+    } else {
+        std::printf("현재 생산 중인 주문이 없습니다.\n");
+    }
+
+    if (waiting.empty()) {
+        std::printf("대기 중인 주문이 없습니다.\n");
+        return;
+    }
+    std::printf("대기 큐 (FIFO):\n");
+    for (const auto& order : waiting) {
+        std::printf("  [%s] %s x %d ea (부족분 %d ea)\n", order.orderNumber.c_str(), order.sampleId.c_str(),
+                    order.quantity, order.shortageQuantity);
+    }
+}

@@ -4,30 +4,9 @@
 #include <sstream>
 #include <tuple>
 
+#include "OrderJson.h"
+
 namespace {
-
-Order fromJson(const nlohmann::ordered_json& j) {
-    Order o;
-    o.orderNumber = j.at("orderNumber").get<std::string>();
-    o.sampleId = j.at("sampleId").get<std::string>();
-    o.customerName = j.at("customerName").get<std::string>();
-    o.quantity = j.at("quantity").get<int>();
-    // Phase 3까지 생성된 data.json에는 이 필드가 없으므로 기본값 0으로 하위 호환.
-    o.shortageQuantity = j.value("shortageQuantity", 0);
-    o.status = orderStatusFromString(j.at("status").get<std::string>());
-    return o;
-}
-
-nlohmann::ordered_json toJson(const Order& o) {
-    return nlohmann::ordered_json{
-        {"orderNumber", o.orderNumber},
-        {"sampleId", o.sampleId},
-        {"customerName", o.customerName},
-        {"quantity", o.quantity},
-        {"shortageQuantity", o.shortageQuantity},
-        {"status", orderStatusToString(o.status)}
-    };
-}
 
 // Howard Hinnant의 civil_from_days 알고리즘: 1970-01-01 기준 일수 -> (년,월,일).
 // gmtime_s/timegm 등 플랫폼별 CRT 함수에 의존하지 않고 UTC 기준으로 결정론적으로 계산한다.
@@ -99,7 +78,7 @@ OrderRepository::ReserveResult OrderRepository::reserve(const std::string& sampl
     order.quantity = quantity;
     order.status = OrderStatus::RESERVED;
 
-    store_.orders().push_back(toJson(order));
+    store_.orders().push_back(orderToJson(order));
     store_.save();
 
     return {true, "", order};
@@ -111,7 +90,7 @@ OrderRepository::ApproveResult OrderRepository::approve(const std::string& order
             continue;
         }
 
-        Order order = fromJson(item);
+        Order order = orderFromJson(item);
         if (order.status != OrderStatus::RESERVED) {
             return {false, "이미 처리된 주문입니다: " + orderNumber, std::nullopt};
         }
@@ -121,16 +100,16 @@ OrderRepository::ApproveResult OrderRepository::approve(const std::string& order
         const int currentStock = sample->stock;
 
         if (currentStock >= order.quantity) {
-            sampleRepository_.setStock(order.sampleId, currentStock - order.quantity);
+            sampleRepository_.adjustStockInMemory(order.sampleId, currentStock - order.quantity);
             order.shortageQuantity = 0;
             order.status = OrderStatus::CONFIRMED;
         } else {
             order.shortageQuantity = order.quantity - currentStock;
-            sampleRepository_.setStock(order.sampleId, 0);
+            sampleRepository_.adjustStockInMemory(order.sampleId, 0);
             order.status = OrderStatus::PRODUCING;
         }
 
-        item = toJson(order);
+        item = orderToJson(order);
         store_.save();
         return {true, "", order};
     }
@@ -143,13 +122,13 @@ OrderRepository::RejectResult OrderRepository::reject(const std::string& orderNu
             continue;
         }
 
-        Order order = fromJson(item);
+        Order order = orderFromJson(item);
         if (order.status != OrderStatus::RESERVED) {
             return {false, "이미 처리된 주문입니다: " + orderNumber};
         }
 
         order.status = OrderStatus::REJECTED;
-        item = toJson(order);
+        item = orderToJson(order);
         store_.save();
         return {true, ""};
     }
@@ -159,7 +138,7 @@ OrderRepository::RejectResult OrderRepository::reject(const std::string& orderNu
 std::optional<Order> OrderRepository::find(const std::string& orderNumber) const {
     for (const auto& item : store_.orders()) {
         if (item.at("orderNumber").get<std::string>() == orderNumber) {
-            return fromJson(item);
+            return orderFromJson(item);
         }
     }
     return std::nullopt;
@@ -168,7 +147,7 @@ std::optional<Order> OrderRepository::find(const std::string& orderNumber) const
 std::vector<Order> OrderRepository::list() const {
     std::vector<Order> result;
     for (const auto& item : store_.orders()) {
-        result.push_back(fromJson(item));
+        result.push_back(orderFromJson(item));
     }
     return result;
 }
@@ -176,7 +155,7 @@ std::vector<Order> OrderRepository::list() const {
 std::vector<Order> OrderRepository::listByStatus(OrderStatus status) const {
     std::vector<Order> result;
     for (const auto& item : store_.orders()) {
-        Order order = fromJson(item);
+        Order order = orderFromJson(item);
         if (order.status == status) {
             result.push_back(order);
         }
