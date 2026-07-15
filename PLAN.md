@@ -46,7 +46,13 @@
 
 - **목표**: 재고 확인 기반 자동 분기(CONFIRMED/PRODUCING) 및 거절(REJECTED) 처리
 - **범위**: RESERVED 목록 표시, 승인 시 재고 충분→CONFIRMED / 재고 부족→PRODUCING 자동 분기, 거절 시 REJECTED 전환
-- **완료 기준**: 재고 충분/부족/거절 3가지 시나리오 각각 테스트로 검증
+- **재고 차감 규칙 (사람 확인 완료)**:
+  - 재고 충분 시 승인 즉시 주문 수량만큼 `Sample.stock`을 차감하고 CONFIRMED로 전환한다.
+  - 재고 부족 시 승인 즉시 기존 재고 전량을 0으로 차감(해당 주문에 전액 점유)하고, 부족분(`quantity - 승인 시점 재고`)을 주문에 저장한 뒤 PRODUCING으로 전환한다. 이 부족분을 Phase 5가 실 생산량 계산(`ceil(부족분/수율)`)에 사용한다.
+- **설계 시 반드시 확정할 사항 (Phase 3 코드 리뷰에서 발견)**:
+  - **Controller 재사용**: 새 도메인 Controller를 만들지 않고 기존 `OrderController`에 승인/거절 메서드를 추가한다 — `MainController`가 도메인마다 생성자 파라미터를 계속 늘려가는 문제(`log`/이전 리뷰에서 지적)를 막기 위함. `MainController::handleSelection("3")`은 새 생성자 파라미터 없이 기존 `orderController_`를 재사용한다.
+  - **`OrderRepository` 상태 변경 메서드 신설**: Phase 3까지는 `reserve`/`find`/`list`만 있었다. 이번 Phase에서 `approve`/`reject`/`listByStatus` 등 상태 전이 메서드를 추가한다.
+- **완료 기준**: 재고 충분/부족/거절 3가지 시나리오 각각 테스트로 검증, 부족 시 부족분 계산이 정확한지 검증, 이미 처리된(RESERVED가 아닌) 주문의 재승인/재거절이 거부되는지 검증
 
 ## Phase 5 — 생산 라인 (FIFO 큐)
 
