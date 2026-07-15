@@ -117,6 +117,20 @@
 - **완료 기준**: 기존 70개 테스트 전체 회귀 없이 통과. `chcp 949`로 강제 변경 후 앱 실행 시 콘솔 코드페이지가 65001로 바뀌는지 확인(리다이렉트 캡처로는 mojibake 자체를 재현할 수 없으므로 간접 증거로 대체).
 - **구현 완료** (`log/phase10.md` 참고): `main.cpp`에 `SetConsoleOutputCP`/`SetConsoleCP(CP_UTF8)` 추가. ctest 70/70 회귀 없음. `chcp 949` 강제 후 앱 실행 시 콘솔 코드페이지가 65001로 바뀜을 확인(간접 증거).
 
+## Phase 11 — 테스트 커버리지 보강
+
+- **배경**: `tc.md` 충분성 점검 중 발견된 3가지 공백.
+  1. **`ConsoleView`(실제 `IView` 구현체)에 대한 자동화 테스트 전무**: 모든 Controller 테스트는 `StubView`로 위임만 확인하고, 실제 `printf` 포맷 출력은 각 Phase의 `log/phaseN.md` 수동 실행 로그로만 확인되어 왔다. `mvc` PoC에는 정확히 이 목적의 `ConsoleViewTest.cpp`(`testing::internal::CaptureStdout()`)가 이미 있으나 semi에는 이식되지 않았다.
+  2. **`SampleRepository::search()`의 수치형 필드(생산시간/수율) 매칭 미검증**: Phase 2 설계에서 정한 "id/name/avgProductionTimeMinutes/yield 4개 필드 중 하나라도 일치" 규칙 중 수치형 2개 필드는 테스트가 없다.
+  3. **`OrderController::approveOrder()`의 PRODUCING(재고 부족) 분기 메시지가 Controller 테스트에서 미검증**: `ApproveOrderShowsSuccessMessage`는 재고 충분(CONFIRMED) 케이스만 다룬다.
+- **목표**: 새 기능 추가 없이 위 3가지 공백을 테스트로 채우고, `gcov`로 실제 라인 커버리지를 수치화한다.
+- **범위**:
+  - `tests/ConsoleViewTest.cpp` 신규 — `mvc` PoC의 stdout 캡처 패턴을 이식해 `ConsoleView`의 10개 `IView` 메서드 전부(빈 목록 케이스 포함) 검증
+  - `tests/SampleRepositoryTest.cpp`에 `avgProductionTimeMinutes`/`yield` 값으로 검색하는 케이스 추가
+  - `tests/OrderControllerTest.cpp`에 재고 부족(PRODUCING) 승인 시 "재고 부족, 생산 대기" 메시지가 전달되는 케이스 추가
+  - **`gcov` 커버리지 계측 도입**: 이미 GCC(WinGet mingw64) 툴체인을 쓰고 있어 `gcov` 자체는 새 의존성 없이 바로 사용 가능. `gcovr`/`lcov` 같은 별도 리포트 도구는 도입하지 않는다(사람 확인 완료). `scripts/coverage.sh`(신규, `build.sh`와 별도 빌드 디렉토리 사용)로 `--coverage` 계측 빌드 → `ctest` → `gcov` 실행까지 자동화
+- **완료 기준**: 신규 테스트 전부 통과, 기존 70개 테스트 전체 회귀 없음, `tc.md` 1부 인벤토리 갱신, `scripts/coverage.sh` 실행으로 `.gcov` 리포트가 생성되고 이번에 보강한 3개 영역(ConsoleView/검색/승인 분기)의 라인 커버리지가 실제로 오른 것을 확인
+
 이 프로젝트의 마지막 Phase.
 
 ---
