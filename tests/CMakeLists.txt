@@ -12,6 +12,9 @@ add_executable(sample_order_tests
     JsonStoreTest.cpp
     SampleRepositoryTest.cpp
     SampleControllerTest.cpp
+    OrderInputTest.cpp
+    OrderRepositoryTest.cpp
+    OrderControllerTest.cpp
     dummygen/DummyGenerator.cpp
     dummygen/SchemaValidator.cpp
 )

@@ -3,7 +3,9 @@
 #include <string>
 
 #include "controller/MainController.h"
+#include "controller/OrderController.h"
 #include "controller/SampleController.h"
+#include "model/OrderRepository.h"
 #include "model/SampleRepository.h"
 #include "persistence/JsonStore.h"
 #include "view/ConsoleView.h"
@@ -29,9 +31,11 @@ int main() {
     store.ensureLoaded();
 
     SampleRepository sampleRepository(store);
+    OrderRepository orderRepository(store, sampleRepository);
     ConsoleView view;
     SampleController sampleController(sampleRepository, view);
-    MainController controller(view, sampleController);
+    OrderController orderController(orderRepository, view);
+    MainController controller(view, sampleController, orderController);
 
     std::string line;
     while (!controller.isExitRequested()) {
