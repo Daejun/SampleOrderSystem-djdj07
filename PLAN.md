@@ -99,7 +99,16 @@
 - **범위**: 메인 메뉴에 전체 요약 정보(등록 시료 수, 총 재고, 전체 주문 수, 생산라인 대기 건수) 표시, 모든 하위 메뉴 연결
 - **요약 정보 정의 (합리적 해석, `docs/design/phase8.md` 참고)**: "전체 주문 수"는 REJECTED를 포함한 전체 등록 주문 수(prd.md §4.1은 §4.5와 달리 REJECTED 제외를 명시하지 않음), "생산라인 대기 건수"는 `MonitoringService::orderCountSummary().producing`(대기+활성 생산 모두 포함) 재사용.
 - **완료 기준**: "주문 접수 → 승인(재고부족) → 생산완료 → 출고"까지의 전체 흐름이 콘솔 상에서 End-to-End로 재현 가능 (Demonstrability 근거로 실행 로그 첨부), 동일 흐름을 자동화된 E2E 테스트로도 회귀 보호
-- **구현 완료** (`log/phase8.md` 참고): `MonitoringService::mainMenuSummary()` 추가, `IView::showMainMenu` 추가하여 `main.cpp`의 `printMenu()` 자유 함수 제거, 메인 메뉴 루프마다 `productionQueue.advance()` 호출 추가(생산 라인 조회를 거치지 않아도 완료 자동 반영), `EndToEndTest` 신규로 전체 흐름 회귀 보호. 이 프로젝트의 마지막 Phase.
+- **구현 완료** (`log/phase8.md` 참고): `MonitoringService::mainMenuSummary()` 추가, `IView::showMainMenu` 추가하여 `main.cpp`의 `printMenu()` 자유 함수 제거, 메인 메뉴 루프마다 `productionQueue.advance()` 호출 추가(생산 라인 조회를 거치지 않아도 완료 자동 반영), `EndToEndTest` 신규로 전체 흐름 회귀 보호.
+
+## Phase 9 — 코드 정리: `main.cpp` 중복 `advance()` 호출 제거
+
+- **배경**: Phase 8 코드 리뷰에서 발견 — Phase 5 때 추가된 시작 시 1회 `productionQueue.advance()` 호출(`"재시작 시 밀린 생산완료를 즉시 반영"`)이, Phase 8에서 메인 루프 매 반복 시작에 `advance()`를 호출하도록 바뀌면서 완전히 중복되었다. 두 호출 사이에 시간이 흐르지 않으므로 동작상 문제는 없으나, 읽는 사람이 "왜 두 번 호출하는가"를 헷갈릴 수 있는 죽은 코드에 가깝다.
+- **목표**: 새 기능 추가 없이 `main.cpp`의 중복 호출과 관련 주석을 제거해 가독성을 회복한다.
+- **범위**: `main.cpp`에서 `ProductionQueue` 생성 직후의 단독 `advance()` 호출과 주석 삭제. 루프 내부의 `advance()` 호출(Phase 8에서 추가된 것)은 그대로 유지.
+- **완료 기준**: 기존 70개 테스트 전체 회귀 없이 통과, 콘솔 실행 로그로 "생산 라인 조회를 거치지 않아도 재시작 시 생산완료가 자동 반영된다"는 Phase 8 시나리오가 여전히 동일하게 재현되는지 재확인.
+
+이 프로젝트의 마지막 Phase.
 
 ---
 
