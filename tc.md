@@ -1,10 +1,109 @@
-# TC: 재고/타이밍 시나리오 테스트 케이스 카탈로그
+# TC: 테스트 케이스 카탈로그
 
-이 문서는 승인(`OrderRepository::approve`)과 생산 큐(`ProductionQueue::advance`)의 동작을 "초기 재고량"과
-"주문 도착/승인 타이밍"의 조합으로 일반화한 테스트 케이스 목록이다. `PLAN.md`의 Phase 4·5 생산 규칙과
-`prd.md` §4.5(주문 승인/거절), §4.6(생산라인)을 근거로 하며, 실제 코드(`OrderRepository`,
-`ProductionQueue`)를 그대로 실행해 값을 검증했다. 각 TC는 `tests/ProductionQueueTest.cpp` 또는
-`tests/OrderRepositoryTest.cpp`의 대응 gtest 케이스로 이미 구현되어 있다.
+이 문서는 이 프로젝트에 실제로 구현되어 있는 모든 gtest 테스트 케이스의 목록(1부)과, 그중 승인
+(`OrderRepository::approve`)·생산 큐(`ProductionQueue::advance`)의 동작을 "초기 재고량"과 "주문
+도착/승인 타이밍"의 조합으로 일반화한 시나리오 상세(2부)로 구성된다. 2부는 `PLAN.md`의 Phase 4·5
+생산 규칙과 `prd.md` §4.5(주문 승인/거절), §4.6(생산라인)을 근거로 하며, 실제 코드를 그대로 실행해
+값을 검증했다.
+
+## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~5, 53개)
+
+`bash scripts/build.sh` 기준 최신 실행 결과: **53/53 통과**. 파일별로 정리했다.
+
+### `PlaceholderTest.cpp` — Phase 1 (빌드 확인용)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `Placeholder.BuildWorks` | gtest 연동 및 빌드 체계가 정상 동작하는지 확인 |
+
+### `JsonStoreTest.cpp` — Phase 2 (영속성 계층)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `JsonStoreTest.BootstrapsWhenFileMissing` | `data.json` 파일이 없으면 `{"samples":[],"orders":[]}`로 자동 생성 |
+| `JsonStoreTest.LoadsExistingFile` | 기존 파일이 있으면 그대로 로드 |
+| `JsonStoreTest.SaveThenReloadRoundTrips` | 저장 후 재로드 시 데이터가 그대로 유지(라운드트립) |
+
+### `SampleRepositoryTest.cpp` — Phase 2/5 (시료 CRUD, 재고 조작)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `RegisterAndFindDummySample` | dummygen으로 생성한 유효 시료 등록 후 조회 일치 (등록 시 재고 0 강제 확인 포함) |
+| `RejectsDuplicateId` | 동일 ID 중복 등록 거부 |
+| `RejectsRangeViolationsFromDummyInvalidSet` | dummygen invalid 세트 중 생산시간≤0/수율 범위 밖 케이스 거부 |
+| `SearchMatchesPartialCaseInsensitive` | id/name 등 부분 일치·대소문자 무시 검색 |
+| `SetStockUpdatesExistingSample` | `setStock`으로 재고 절대값 설정 |
+| `SetStockReturnsFalseForUnknownId` | 존재하지 않는 id에 대한 `setStock`은 false |
+| `PersistsAcrossReload` | 등록 후 재시작해도 조회 가능(영속화) |
+
+### `SampleControllerTest.cpp` — Phase 2 (Controller ↔ View 위임)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `RegisterSampleShowsSuccessMessage` | 등록 성공 시 성공 메시지를 View에 전달 |
+| `RegisterDuplicateShowsError` | 중복 등록 시 오류 메시지 전달 |
+| `RegisterInvalidYieldShowsError` | 잘못된 수율 입력 시 오류 메시지 전달 |
+| `ListSamplesForwardsToView` | 목록 조회 결과를 View에 그대로 전달 |
+| `SearchSamplesForwardsToView` | 검색 결과를 View에 그대로 전달 |
+
+### `OrderInputTest.cpp` — Phase 3 (입력 파싱 순수 함수)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `ParsesPositiveInteger` | 양의 정수 문자열 파싱 성공 |
+| `RejectsZero` | "0" 입력 거부 |
+| `RejectsNegative` | 음수 입력 거부 |
+| `RejectsNonNumeric` | 숫자가 아닌 입력 거부 |
+| `RejectsTrailingGarbage` | 뒤에 불필요한 문자가 붙은 입력 거부 |
+
+### `OrderRepositoryTest.cpp` — Phase 3/4/5 (주문 예약·승인·거절)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `ReserveGeneratesOrderNumberWithFixedDate` | 주문번호 `ORD-YYYYMMDD-NNNN` 형식 생성(고정 Clock) |
+| `OrderNumberSequenceIncrementsForSameDate` | 같은 날짜 내 순번이 1씩 증가 |
+| `RejectsUnregisteredSampleId` | 미등록 시료 ID 주문 거부 |
+| `RejectsNonPositiveQuantityFromDummyInvalidSet` | dummygen invalid 세트 중 수량≤0 케이스 거부 |
+| `RejectsEmptyCustomerName` | 빈 고객명 거부 |
+| `ApproveWithSufficientStockDeductsAndConfirms` | 재고 충분 시 즉시 차감 + CONFIRMED |
+| `ApproveWithInsufficientStockZeroesStockAndProduces` | 재고 부족 시 전량 점유(0) + 부족분 계산 + PRODUCING |
+| `ApproveExactStockMatchConfirmsWithoutShortage` | **경계값**: 재고==주문량이면 "충분" 분기(CONFIRMED), "부족" 아님 |
+| `RejectTransitionsToRejectedWithoutStockChange` | 거절 시 REJECTED 전환, 재고 변경 없음 |
+| `RejectsReapprovalOfNonReservedOrder` | 이미 처리된 주문의 재승인/재거절 거부 |
+| `ApproveUnknownOrderNumberFails` | 존재하지 않는 주문번호 승인 실패 |
+| `ListByStatusReturnsOnlyMatchingOrders` | 상태별 필터링 조회(RESERVED/CONFIRMED 등) |
+| `ApprovalPersistsAcrossReload` | 승인 후 재시작해도 상태·부족분·재고 유지 |
+| `PersistsAcrossReload` | 예약(RESERVED) 후 재시작해도 조회 가능 |
+
+### `OrderControllerTest.cpp` — Phase 3/4 (Controller ↔ View 위임)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `ReserveOrderShowsSuccessMessage` | 주문 접수 성공 메시지 전달 |
+| `ReserveOrderForUnknownSampleShowsError` | 미등록 시료 주문 시 오류 전달 |
+| `ListOrdersForwardsToView` | 주문 목록을 View에 전달 |
+| `ApproveOrderShowsSuccessMessage` | 승인 성공 메시지 전달(충분/부족 공통) |
+| `ApproveUnknownOrderShowsError` | 존재하지 않는 주문 승인 시 오류 전달 |
+| `RejectOrderShowsSuccessMessage` | 거절 성공 메시지 전달 |
+| `ListReservedOrdersForwardsOnlyReservedToView` | RESERVED만 필터링해 View에 전달 |
+
+### `ProductionQueueTest.cpp` — Phase 5 (생산 큐)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `ApprovedInsufficientOrdersStayInWaitingQueueFifo` | 승인(부족)된 주문들이 대기 큐에 FIFO 순서로 유지 |
+| `AdvanceStartsFirstWaitingOrderWhenNoActiveProduction` | 활성 생산 없을 때 대기 큐 맨 앞 주문의 생산 시작(수량/완료시각 계산) |
+| `RemainsProducingBeforeCompletionAndConfirmsAfter` | 완료 시각 이전 PRODUCING 유지, 이후 CONFIRMED+재고 batch 반영 |
+| `ProcessesMultipleWaitingOrdersSequentiallyWithoutMerging` | 여러 대기 주문이 병합 없이 순차 처리 |
+| `CompletesImmediatelyOnRestartAfterCompletionTimePassed` | 재시작 시나리오(생명주기 무관 완료 판정) |
+| `TC1_SufficientStockCoversBothOrders_NoProductionForEither` | 재고 여유 시 두 주문 모두 생산 없이 처리 (2부 TC-1) |
+| `TC2_PartialStockReducesShortage_SecondOrderQueuesWhileFirstActive` | 재고 일부 부족 + 두 번째 주문이 활성 생산 중 대기 (2부 TC-2) |
+| `TC3_OrderApprovedAfterPriorCompletion_EvaluatesAgainstUpdatedStockIndependently` | 선행 생산 완료 이후 도착한 주문의 독립 평가 (2부 TC-3) |
+| `TC4_ThreeOrdersMaintainStrictFifoOrderWithoutMerging` | 대기 주문 3건의 FIFO 순차 처리 (2부 TC-4) |
+| `TC5_ProductionQuantityRoundsUpForNonDivisibleShortage` | 수율 나눗셈 ceil 올림 (2부 TC-5) |
+| `TC6_RestartAfterCompletionTimePersistsConfirmedStateToRawJsonFile` | 재시작 후 완료 상태의 원본 파일 영속화 확인 (2부 TC-6) |
+
+## 2부. 재고/타이밍 시나리오 상세 (승인·생산 큐 심화)
 
 ## 배경 규칙 (요약)
 
