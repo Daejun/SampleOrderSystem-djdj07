@@ -129,7 +129,7 @@ RESERVED --거절--> REJECTED
 
 1. **문서 관리**: CLAUDE.md, PRD.md 등 프로젝트 문서를 지속적으로 관리
 2. **Harness 도입**: Agentic Engineering 워크플로우(테스트/린트 자동화 등) 적용
-3. **Test**: 상태 전이, 재고 계산, 생산 큐 로직 등 핵심 로직에 대한 테스트 작성
+3. **Test**: 상태 전이, 재고 계산, 생산 큐 로직 등 핵심 로직에 대한 테스트 작성. 테스트 데이터는 가능한 한 `DummyDataGenerator-djdj07`(PoC, `tests/dummygen/`으로 이식)의 스키마 기반 valid/invalid 인스턴스 생성 기능을 재사용한다 (Phase 2부터 적용, `PLAN.md`/`log/phase2.md` 참고).
 4. **CleanCode**: MVC 구조(Model/Controller/View) 기반의 역할 분리
 5. **Commit 이력**: 기능 단위로 의미 있는 커밋 이력 관리
 

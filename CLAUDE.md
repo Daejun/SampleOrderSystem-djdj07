@@ -29,6 +29,18 @@
 
 새로운 라이브러리 도입이 필요하면 먼저 사람에게 제안하고 승인받은 후 진행한다.
 
+### 빌드 환경 주의사항 (Git Bash PATH 충돌)
+
+Git Bash(MSYS)에는 Git 번들 mingw64(`/mingw64/bin`)가 WinGet으로 설치한 mingw64보다 PATH 앞쪽에
+잡혀 있다. 두 mingw64의 `libstdc++-6.dll`/`libgcc_s_seh-1.dll`은 ABI가 달라, WinGet 툴체인으로
+컴파일·링크한 실행 파일을 Git 번들 `libstdc++`로 로드하면 `STATUS_ENTRYPOINT_NOT_FOUND`(종료 코드
+`0xc0000139`)로 즉시 죽는다. `cmake --build`/`ctest`가 이 문제로 실패한 근본 원인 분석은
+`log/phase2.md`를 참고한다.
+
+**반드시 `scripts/build.sh`로 빌드/테스트를 실행한다.** 이 스크립트가 WinGet mingw64/bin을 PATH
+맨 앞에 두고 configure → build → ctest를 수행하므로 PATH 충돌을 피할 수 있다. 직접 `cmake`/`ctest`를
+칠 경우에도 동일하게 PATH 순서를 맞춰야 한다.
+
 ## 프로젝트 문서 구조
 
 작업 시 아래 문서를 우선순위대로 참조한다. 문서 간 내용이 충돌하거나 모호하면 임의로 판단하지 말고 먼저 사람에게 확인한다.

@@ -149,3 +149,46 @@ public:
 - `data.json` 부재 상태에서 최초 실행 시 예외 없이 부트스트랩되는지 테스트로 검증
 - `ctest` 전체(placeholder + 신규 테스트) 통과
 - 콘솔 실행 로그로 등록→조회→검색 흐름 재현 (Demonstrability)
+
+## 실제 구현 결과 (설계 대비 변경/추가 사항)
+
+상세 Verify 결과는 `log/phase2.md` 참고. 설계 대비 다음 두 가지가 추가/변경되었다.
+
+### 1. 테스트 데이터: DummyDataGenerator-djdj07 재사용 적용
+
+애초 설계에는 없었으나, PLAN.md의 PoC↔Phase 매핑표("DummyDataGenerator-djdj07 → 각 Phase의 테스트 데이터
+준비 시")를 지금까지 적용하지 않고 있었음을 사람이 지적하여 Phase 2부터 반영했다.
+
+- `DummyDataGenerator-djdj07`의 `DummyGenerator.h/.cpp`, `SchemaValidator.h/.cpp`를 그대로
+  `tests/dummygen/`으로 이식 (프로덕션 코드가 아닌 테스트 전용이므로 `src/`가 아닌 `tests/`에 배치).
+- `tests/SampleTestData.h`에 Sample 도메인 규칙(avgProductionTimeMinutes>0, yield∈(0,1])을 반영한
+  JSON 스키마(`sampleSchema()`)와 JSON↔`Sample` 변환 헬퍼(`toSample()`)를 신설.
+- `SampleRepositoryTest`/`SampleControllerTest`는 하드코딩 대신
+  `DummyGenerator::generateValidFromSchema`(정상 케이스)와 `generateInvalidFromSchema`(범위 위반
+  케이스, `avgProductionTimeMinutes`/`yield`의 최솟값·최댓값 위반만 도메인 규칙 위반으로 필터링해 검증)로
+  생성한 데이터를 사용하도록 재작성.
+- `generateValidFromSchema`는 완전히 결정론적(같은 스키마 → 항상 같은 값)이라, 여러 건이 필요한
+  테스트(목록/검색)는 생성된 기본값에서 `id`/`name`만 덮어써 구분한다.
+
+### 2. CMake 구조 변경: `sample_order_core` 라이브러리 신설
+
+Phase 1에서는 `sample_order_app`이 `main.cpp`/`ConsoleView.cpp`/`MainController.cpp`를 직접
+컴파일했다. Phase 2부터 테스트 대상 코드(모델/뷰/컨트롤러)가 늘어나면서, 테스트 실행 파일이 동일 소스를
+다시 컴파일하지 않고 공유할 수 있도록 `sample_order_core` 정적 라이브러리를 신설했다.
+
+- `sample_order_persistence`: `JsonDocument`, `JsonStore` (기존과 동일)
+- `sample_order_core`: `SampleRepository`, `ConsoleView`, `SampleController`, `MainController` (신설, `sample_order_persistence`에 링크)
+- `sample_order_app`: `main.cpp`만 컴파일, `sample_order_core`에 링크
+- `sample_order_tests`: `sample_order_core` + `tests/dummygen` 소스 + gtest에 링크
+
+### 3. 빌드 환경 이슈 발견 및 해결: Git Bash mingw64 PATH 충돌
+
+`ctest` 실행 시 신규 테스트 실행 파일이 `0xc0000139`(`STATUS_ENTRYPOINT_NOT_FOUND`)로 즉시 종료되는
+문제를 발견했다. 원인은 Git Bash(MSYS)에 내장된 mingw64(`/mingw64/bin`)가 실제 빌드에 쓰인 WinGet
+mingw64보다 PATH 앞쪽에 있어, 실행 파일이 컴파일에 쓰인 것과 다른(ABI 불일치) `libstdc++-6.dll`을
+로드했기 때문이다(코드 결함 아님). PowerShell에서 동일 실행 파일을 직접 실행하면 문제없이 통과하는 것으로
+원인을 확정했다.
+
+해결책으로 `scripts/build.sh`를 신설해 WinGet mingw64/bin을 PATH 맨 앞에 두고 configure→build→ctest를
+수행하도록 했다. 이후 모든 Phase의 빌드/테스트는 이 스크립트를 통해 실행한다 (`PLAN.md`, `CLAUDE.md`에도
+반영).

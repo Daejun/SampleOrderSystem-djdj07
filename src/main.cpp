@@ -3,6 +3,9 @@
 #include <string>
 
 #include "controller/MainController.h"
+#include "controller/SampleController.h"
+#include "model/SampleRepository.h"
+#include "persistence/JsonStore.h"
 #include "view/ConsoleView.h"
 
 namespace {
@@ -22,8 +25,13 @@ void printMenu() {
 }  // namespace
 
 int main() {
+    sampleorder::JsonStore store("data/data.json");
+    store.ensureLoaded();
+
+    SampleRepository sampleRepository(store);
     ConsoleView view;
-    MainController controller(view);
+    SampleController sampleController(sampleRepository, view);
+    MainController controller(view, sampleController);
 
     std::string line;
     while (!controller.isExitRequested()) {

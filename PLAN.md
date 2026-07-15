@@ -8,6 +8,7 @@
 - 각 Phase는 완료 시 빌드/테스트가 깨지지 않는 독립 실행 가능 상태여야 한다.
 - 기 개발된 PoC(`json_crud`, `mvc`, `DummyDataGenerator-djdj07`, `datamon`)의 **코드를 semi 프로젝트로 직접 가져와 재사용**한다 (사람 확인 완료, 2026-07-15). 패턴만 참고하여 새로 작성하지 않는다 — 각 PoC의 소스를 semi 프로젝트 구조에 맞게 이식(porting)하는 것을 우선한다.
 - 각 Phase 착수 전 `docs/design/phaseN.md` 작성 → 사람 검토 → 구현 → Verify(§CLAUDE.md) → 사람 리뷰 → 커밋 순서를 따른다.
+- **빌드/테스트는 반드시 `scripts/build.sh`로 실행한다.** Git Bash 내장 mingw64와 WinGet mingw64의 런타임 DLL이 충돌해 `ctest`가 `0xc0000139`로 죽는 문제가 있다 (원인·해결: `CLAUDE.md`의 "빌드 환경 주의사항", `log/phase2.md` 참고).
 
 ---
 
@@ -30,6 +31,7 @@
   - **최초 실행 부트스트랩**: `data/` 디렉토리는 `.gitignore` 대상이라 최초 실행 시 `data.json`이 존재하지 않는다. 현재 `JsonDocument::load()`는 파일이 없으면 예외를 던지므로, 파일 부재 시 `{"samples":[], "orders":[]}` 형태로 자동 생성하는 로직을 설계에 포함한다.
   - **Controller 책임 분리 방향**: Phase 1에서 만든 단일 `MainController`를 계속 확장할지, 도메인별(`SampleController` 등)로 분리할지 이번 Phase에서 결정한다. 결정하지 않으면 Phase 3~4를 거치며 `MainController`가 여러 도메인 로직을 떠안는 비대한 클래스가 될 위험이 있다(SRP 위반).
 - **완료 기준**: 시료 등록 후 재시작해도 조회 가능(영속화 확인), 검색 기능 테스트 통과
+- **구현 완료** (`log/phase2.md` 참고): `JsonStore`/`Sample`/`SampleRepository`/`SampleController` 구현, `MainController`의 "1" 선택 시 시료 관리 하위 메뉴로 위임하도록 수정. 테스트 데이터는 `DummyDataGenerator-djdj07`을 `tests/dummygen/`으로 이식해 스키마 기반 valid/invalid 인스턴스로 생성 (PoC 매핑표 방침 최초 적용).
 
 ## Phase 3 — 주문(Order) 모델 및 예약 접수
 
@@ -92,7 +94,7 @@
 | `mvc` | `C:\Users\User\mvc` | Model/View/Controller 골격, View 인터페이스(IView) 및 stub 처리 방식 | Phase 1, 2, 3 |
 | `json_crud` | `C:\Users\User\json_crud` | JSON atomic write(`JsonDocument`), 경로 기반 CRUD, 변경 이력(History) 기록 코드 | Phase 1(영속성 계층), 2, 3 |
 | `datamon` | `C:\Users\User\datamon` | 읽기 전용 조회 세션(모니터링) 구성 코드 | Phase 7(모니터링) |
-| `DummyDataGenerator-djdj07` | `C:\Users\User\DummyDataGenerator-djdj07` | 스키마 기반 더미 데이터 생성기(valid/invalid, edge 케이스) 코드 | 각 Phase의 테스트 데이터 준비 시 |
+| `DummyDataGenerator-djdj07` | `C:\Users\User\DummyDataGenerator-djdj07` | 스키마 기반 더미 데이터 생성기(valid/invalid, edge 케이스) 코드 → `tests/dummygen/`(`DummyGenerator`, `SchemaValidator`)으로 이식 완료 (Phase 2) | 각 Phase의 테스트 데이터 준비 시 |
 
 > 각 PoC의 코드를 그대로 복사한 뒤 semi 프로젝트의 네임스페이스/도메인(Sample/Order)에 맞게 수정하는 순서로 진행한다. Phase 착수 시 설계 문서(`docs/design/phaseN.md`)에 "어느 파일을 어디서 가져와 무엇을 수정했는지"를 기록한다.
 
