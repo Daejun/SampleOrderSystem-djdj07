@@ -25,12 +25,20 @@ struct SampleInventoryStatus {
     InventoryLevel level;
 };
 
+struct MainMenuSummary {
+    int sampleCount = 0;
+    int totalStock = 0;
+    int totalOrderCount = 0;  // REJECTED 포함 전체 (prd.md §4.1은 §4.5와 달리 제외를 명시하지 않음)
+    int producingCount = 0;   // 생산 대기+활성 생산 합계 (orderCountSummary().producing 재사용)
+};
+
 class MonitoringService {
 public:
     MonitoringService(SampleRepository& sampleRepository, OrderRepository& orderRepository);
 
     OrderCountSummary orderCountSummary() const;
     std::vector<SampleInventoryStatus> inventoryStatus() const;  // SampleRepository::list() 순서 그대로
+    MainMenuSummary mainMenuSummary() const;
 
 private:
     SampleRepository& sampleRepository_;

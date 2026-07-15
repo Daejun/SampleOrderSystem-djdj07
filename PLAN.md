@@ -99,6 +99,7 @@
 - **범위**: 메인 메뉴에 전체 요약 정보(등록 시료 수, 총 재고, 전체 주문 수, 생산라인 대기 건수) 표시, 모든 하위 메뉴 연결
 - **요약 정보 정의 (합리적 해석, `docs/design/phase8.md` 참고)**: "전체 주문 수"는 REJECTED를 포함한 전체 등록 주문 수(prd.md §4.1은 §4.5와 달리 REJECTED 제외를 명시하지 않음), "생산라인 대기 건수"는 `MonitoringService::orderCountSummary().producing`(대기+활성 생산 모두 포함) 재사용.
 - **완료 기준**: "주문 접수 → 승인(재고부족) → 생산완료 → 출고"까지의 전체 흐름이 콘솔 상에서 End-to-End로 재현 가능 (Demonstrability 근거로 실행 로그 첨부), 동일 흐름을 자동화된 E2E 테스트로도 회귀 보호
+- **구현 완료** (`log/phase8.md` 참고): `MonitoringService::mainMenuSummary()` 추가, `IView::showMainMenu` 추가하여 `main.cpp`의 `printMenu()` 자유 함수 제거, 메인 메뉴 루프마다 `productionQueue.advance()` 호출 추가(생산 라인 조회를 거치지 않아도 완료 자동 반영), `EndToEndTest` 신규로 전체 흐름 회귀 보호. 이 프로젝트의 마지막 Phase.
 
 ---
 

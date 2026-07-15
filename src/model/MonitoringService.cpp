@@ -51,3 +51,18 @@ std::vector<SampleInventoryStatus> MonitoringService::inventoryStatus() const {
     }
     return result;
 }
+
+MainMenuSummary MonitoringService::mainMenuSummary() const {
+    MainMenuSummary summary;
+
+    const auto samples = sampleRepository_.list();
+    summary.sampleCount = static_cast<int>(samples.size());
+    for (const auto& sample : samples) {
+        summary.totalStock += sample.stock;
+    }
+
+    summary.totalOrderCount = static_cast<int>(orderRepository_.list().size());
+    summary.producingCount = orderCountSummary().producing;
+
+    return summary;
+}

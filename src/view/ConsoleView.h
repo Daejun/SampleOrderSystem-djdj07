@@ -13,4 +13,5 @@ public:
     void showProductionStatus(const std::optional<Order>& active, const std::vector<Order>& waiting) override;
     void showOrderCountSummary(const OrderCountSummary& summary) override;
     void showInventoryStatus(const std::vector<SampleInventoryStatus>& statuses) override;
+    void showMainMenu(const MainMenuSummary& summary) override;
 };

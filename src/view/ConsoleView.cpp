@@ -78,3 +78,17 @@ void ConsoleView::showInventoryStatus(const std::vector<SampleInventoryStatus>& 
                     inventoryLevelToString(status.level).c_str());
     }
 }
+
+void ConsoleView::showMainMenu(const MainMenuSummary& summary) {
+    std::printf("\n=== 반도체 시료 생산주문관리 시스템 ===\n");
+    std::printf("등록 시료 %d종  총 재고 %d ea  전체 주문 %d건  생산라인 대기 %d건\n", summary.sampleCount,
+                summary.totalStock, summary.totalOrderCount, summary.producingCount);
+    std::printf("[1] 시료 관리\n");
+    std::printf("[2] 시료 주문\n");
+    std::printf("[3] 주문 승인/거절\n");
+    std::printf("[4] 모니터링\n");
+    std::printf("[5] 생산 라인 조회\n");
+    std::printf("[6] 출고 처리\n");
+    std::printf("[0] 종료\n");
+    std::printf("선택 > ");
+}

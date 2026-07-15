@@ -20,4 +20,5 @@ public:
     virtual void showProductionStatus(const std::optional<Order>& active, const std::vector<Order>& waiting) = 0;
     virtual void showOrderCountSummary(const OrderCountSummary& summary) = 0;
     virtual void showInventoryStatus(const std::vector<SampleInventoryStatus>& statuses) = 0;
+    virtual void showMainMenu(const MainMenuSummary& summary) = 0;
 };

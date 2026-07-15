@@ -18,6 +18,7 @@ add_executable(sample_order_tests
     ProductionQueueTest.cpp
     MonitoringServiceTest.cpp
     MonitoringControllerTest.cpp
+    EndToEndTest.cpp
     dummygen/DummyGenerator.cpp
     dummygen/SchemaValidator.cpp
 )

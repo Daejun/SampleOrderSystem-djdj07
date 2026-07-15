@@ -1,4 +1,3 @@
-#include <cstdio>
 #include <iostream>
 #include <string>
 
@@ -13,22 +12,6 @@
 #include "model/SampleRepository.h"
 #include "persistence/JsonStore.h"
 #include "view/ConsoleView.h"
-
-namespace {
-
-void printMenu() {
-    std::printf("\n=== 반도체 시료 생산주문관리 시스템 ===\n");
-    std::printf("[1] 시료 관리\n");
-    std::printf("[2] 시료 주문\n");
-    std::printf("[3] 주문 승인/거절\n");
-    std::printf("[4] 모니터링\n");
-    std::printf("[5] 생산 라인 조회\n");
-    std::printf("[6] 출고 처리\n");
-    std::printf("[0] 종료\n");
-    std::printf("선택 > ");
-}
-
-}  // namespace
 
 int main() {
     sampleorder::JsonStore store("data/data.json");
@@ -50,7 +33,8 @@ int main() {
 
     std::string line;
     while (!controller.isExitRequested()) {
-        printMenu();
+        productionQueue.advance();  // 생산 라인 조회를 거치지 않아도 완료가 지연 없이 반영되도록 매번 확인
+        view.showMainMenu(monitoringService.mainMenuSummary());
         if (!std::getline(std::cin, line)) {
             break;
         }

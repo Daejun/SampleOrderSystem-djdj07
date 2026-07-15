@@ -22,6 +22,7 @@ public:
     void showInventoryStatus(const std::vector<SampleInventoryStatus>& statuses) override {
         lastInventoryStatus = statuses;
     }
+    void showMainMenu(const MainMenuSummary& summary) override { lastMainMenuSummary = summary; }
 
     std::string lastMessage;
     std::string lastError;
@@ -33,4 +34,5 @@ public:
     std::vector<Order> lastWaitingQueue;
     OrderCountSummary lastOrderCountSummary;
     std::vector<SampleInventoryStatus> lastInventoryStatus;
+    MainMenuSummary lastMainMenuSummary;
 };

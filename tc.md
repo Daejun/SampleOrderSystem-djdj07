@@ -6,9 +6,9 @@
 생산 규칙과 `prd.md` §4.5(주문 승인/거절), §4.6(생산라인)을 근거로 하며, 실제 코드를 그대로 실행해
 값을 검증했다.
 
-## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~7, 68개)
+## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~8, 70개)
 
-`bash scripts/build.sh` 기준 최신 실행 결과: **68/68 통과**. 파일별로 정리했다.
+`bash scripts/build.sh` 기준 최신 실행 결과: **70/70 통과**. 파일별로 정리했다.
 
 ### `PlaceholderTest.cpp` — Phase 1 (빌드 확인용)
 
@@ -120,6 +120,7 @@
 | `InventoryStatusLowWhenStockBelowReservedSum` | 재고 < RESERVED 합이면 "부족" |
 | `InventoryStatusIgnoresNonReservedOrdersInComparison` | CONFIRMED/PRODUCING 등은 재고 판정 비교 대상에서 제외(RESERVED만 합산) |
 | `InventoryLevelToStringMapsAllLevels` | 여유/부족/고갈 문자열 매핑 |
+| `MainMenuSummaryCountsAllOrdersIncludingRejectedAndReusesProducing` | 메인 메뉴 요약: 전체 주문 수는 REJECTED 포함, `producingCount`는 `orderCountSummary().producing` 재사용 |
 
 ### `MonitoringControllerTest.cpp` — Phase 7 (Controller ↔ View 위임)
 
@@ -127,6 +128,12 @@
 |---|---|
 | `ShowOrderSummaryForwardsToView` | 주문량 집계 결과를 View에 전달 |
 | `ShowInventoryStatusForwardsToView` | 재고 상태 목록을 View에 전달 |
+
+### `EndToEndTest.cpp` — Phase 8 (전체 시나리오 회귀)
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `FullOrderJourneyFromReservationToRelease` | Repository/Service 계층을 직접 연결해 접수(RESERVED)→승인(재고부족, PRODUCING)→생산 시작·완료(CONFIRMED)→출고(RELEASE)→최종 집계(주문량/재고/메인 메뉴 요약)까지 전체 흐름을 한 번에 검증 |
 
 ## 2부. 재고/타이밍 시나리오 상세 (승인·생산 큐 심화)
 

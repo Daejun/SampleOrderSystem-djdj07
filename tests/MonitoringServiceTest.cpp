@@ -134,3 +134,29 @@ TEST(MonitoringServiceTest, InventoryLevelToStringMapsAllLevels) {
     EXPECT_EQ(inventoryLevelToString(InventoryLevel::LOW), "부족");
     EXPECT_EQ(inventoryLevelToString(InventoryLevel::DEPLETED), "고갈");
 }
+
+TEST(MonitoringServiceTest, MainMenuSummaryCountsAllOrdersIncludingRejectedAndReusesProducing) {
+    const auto path = tempFile("monitoring_main_menu_summary.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-001", 100));
+    ASSERT_TRUE(sampleRepo.registerSample({"S-002", "B", 1.0, 0.8, 0}).success);
+    ASSERT_TRUE(sampleRepo.setStock("S-002", 50));
+    OrderRepository orderRepo(store, sampleRepo);
+
+    orderRepo.reserve("S-001", "고객A", 10);                                  // RESERVED
+    const auto rejected = orderRepo.reserve("S-001", "고객B", 10);
+    orderRepo.reject(rejected.order->orderNumber);                            // REJECTED (전체 주문 수에는 포함되어야 함)
+    const auto producing = orderRepo.reserve("S-001", "고객C", 10000);
+    orderRepo.approve(producing.order->orderNumber);                          // PRODUCING (재고 부족)
+
+    MonitoringService monitoring(sampleRepo, orderRepo);
+    const auto summary = monitoring.mainMenuSummary();
+
+    EXPECT_EQ(summary.sampleCount, 2);
+    EXPECT_EQ(summary.totalStock, 0 + 50);  // S-001은 승인 시 전량 점유되어 0, S-002는 그대로 50
+    EXPECT_EQ(summary.totalOrderCount, 3);  // RESERVED + REJECTED + PRODUCING 모두 포함
+    EXPECT_EQ(summary.producingCount, 1);   // orderCountSummary().producing과 동일한 값 재사용
+}
