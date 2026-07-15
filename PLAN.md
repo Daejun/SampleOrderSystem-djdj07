@@ -37,6 +37,9 @@
 
 - **목표**: 주문 예약(RESERVED) 등록 기능 완성
 - **범위**: `Order` 엔티티, 상태(enum: RESERVED/REJECTED/PRODUCING/CONFIRMED/RELEASE), `OrderRepository`, 주문 예약 입력 흐름
+- **설계 시 반드시 확정할 사항 (Phase 2 코드 리뷰에서 발견)**:
+  - **`JsonStore.cache_` 전제**: `JsonStore`는 설계 문서와 달리 내부 `cache_`가 실제 데이터를 들고 있고 `save()` 시점에 `doc_`로 복사된다(`docs/design/phase2.md` §4). `OrderRepository`도 이 구조를 전제로 `orders()`를 사용한다.
+  - **입력 파싱과 I/O 분리 검토**: `MainController::runSampleMenu()`는 `std::cin`과 파싱/검증 로직이 결합되어 테스트가 불가능했다(`docs/design/phase2.md` §5). 주문 접수는 입력 항목(시료ID/고객명/수량)이 더 많으므로, 파싱/검증을 `std::cin`과 분리된 순수 함수로 추출해 테스트 가능하게 할지 이번 Phase에서 결정한다.
 - **완료 기준**: 존재하는 시료 ID로만 주문 생성 가능, 주문 생성 시 상태가 RESERVED로 저장·조회됨
 
 ## Phase 4 — 주문 승인/거절 로직
