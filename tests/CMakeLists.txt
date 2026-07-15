@@ -12,6 +12,7 @@ add_executable(sample_order_tests
     JsonStoreTest.cpp
     SampleRepositoryTest.cpp
     SampleControllerTest.cpp
+    ConsoleViewTest.cpp
     OrderInputTest.cpp
     OrderRepositoryTest.cpp
     OrderControllerTest.cpp

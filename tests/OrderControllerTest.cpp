@@ -94,6 +94,25 @@ TEST(OrderControllerTest, ApproveOrderShowsSuccessMessage) {
     EXPECT_FALSE(view.lastMessage.empty());
 }
 
+TEST(OrderControllerTest, ApproveOrderWithInsufficientStockShowsProductionWaitingMessage) {
+    const auto path = tempFile("controller_order_approve_producing.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository sampleRepo(store);
+    ASSERT_TRUE(sampleRepo.registerSample({"S-001", "A", 0.5, 0.9, 0}).success);  // 재고 0 (등록 시 강제)
+    OrderRepository orderRepo(store, sampleRepo, testdata::fixedClock);
+    StubView view;
+    OrderController controller(orderRepo, view);
+
+    controller.reserveOrder("S-001", "고객A", 10);  // 재고 0 < 10 -> 승인 시 PRODUCING
+    const auto orderNumber = orderRepo.list().front().orderNumber;
+
+    controller.approveOrder(orderNumber);
+
+    EXPECT_TRUE(view.lastError.empty());
+    EXPECT_NE(view.lastMessage.find("생산 대기"), std::string::npos);
+}
+
 TEST(OrderControllerTest, ApproveUnknownOrderShowsError) {
     const auto path = tempFile("controller_order_approve_unknown.json");
     sampleorder::JsonStore store(path);

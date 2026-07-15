@@ -130,6 +130,7 @@
   - `tests/OrderControllerTest.cpp`에 재고 부족(PRODUCING) 승인 시 "재고 부족, 생산 대기" 메시지가 전달되는 케이스 추가
   - **`gcov` 커버리지 계측 도입**: 이미 GCC(WinGet mingw64) 툴체인을 쓰고 있어 `gcov` 자체는 새 의존성 없이 바로 사용 가능. `gcovr`/`lcov` 같은 별도 리포트 도구는 도입하지 않는다(사람 확인 완료). `scripts/coverage.sh`(신규, `build.sh`와 별도 빌드 디렉토리 사용)로 `--coverage` 계측 빌드 → `ctest` → `gcov` 실행까지 자동화
 - **완료 기준**: 신규 테스트 전부 통과, 기존 70개 테스트 전체 회귀 없음, `tc.md` 1부 인벤토리 갱신, `scripts/coverage.sh` 실행으로 `.gcov` 리포트가 생성되고 이번에 보강한 3개 영역(ConsoleView/검색/승인 분기)의 라인 커버리지가 실제로 오른 것을 확인
+- **구현 완료** (`log/phase11.md` 참고): `ConsoleViewTest.cpp`(15개) 신규, `SampleRepositoryTest`/`OrderControllerTest`에 각 1개 추가(총 87개). `scripts/coverage.sh` 신규(gcov 계측). 보강 전/후 비교: `ConsoleView.cpp` 0%→100%, `OrderController.cpp` 94.59%→97.30%. `SampleRepository.cpp`는 95.83%로 **불변** — 신규 검색 케이스가 이미 실행되던 라인(OR 조건)을 다른 값으로 재실행한 것이라 라인 커버리지 도구로는 차이가 드러나지 않음(정직하게 기록, 브랜치 커버리지였다면 달랐을 것).
 
 이 프로젝트의 마지막 Phase.
 

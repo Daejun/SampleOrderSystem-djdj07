@@ -132,6 +132,25 @@ TEST(SampleRepositoryTest, SearchMatchesPartialCaseInsensitive) {
     EXPECT_TRUE(none.empty());
 }
 
+TEST(SampleRepositoryTest, SearchMatchesByProductionTimeAndYield) {
+    const auto path = tempFile("repo_search_numeric.json");
+    sampleorder::JsonStore store(path);
+    store.ensureLoaded();
+    SampleRepository repo(store);
+
+    // avgProductionTimeMinutes/yield 값이 서로 겹치지 않도록 구성해 교차 매치 오탐 없는지도 함께 확인
+    ASSERT_TRUE(repo.registerSample({"S-101", "Alpha", 0.1234, 0.5, 0}).success);
+    ASSERT_TRUE(repo.registerSample({"S-102", "Beta", 0.9, 0.8765, 0}).success);
+
+    auto byProductionTime = repo.search("1234");  // "0.123400"의 일부
+    ASSERT_EQ(byProductionTime.size(), 1u);
+    EXPECT_EQ(byProductionTime[0].id, "S-101");
+
+    auto byYield = repo.search("8765");  // "0.876500"의 일부
+    ASSERT_EQ(byYield.size(), 1u);
+    EXPECT_EQ(byYield[0].id, "S-102");
+}
+
 TEST(SampleRepositoryTest, SetStockUpdatesExistingSample) {
     const auto path = tempFile("repo_set_stock.json");
     sampleorder::JsonStore store(path);

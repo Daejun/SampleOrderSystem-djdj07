@@ -6,9 +6,10 @@
 생산 규칙과 `prd.md` §4.5(주문 승인/거절), §4.6(생산라인)을 근거로 하며, 실제 코드를 그대로 실행해
 값을 검증했다.
 
-## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~8, 70개)
+## 1부. 전체 테스트 케이스 인벤토리 (Phase 1~11, 87개)
 
-`bash scripts/build.sh` 기준 최신 실행 결과: **70/70 통과**. 파일별로 정리했다.
+`bash scripts/build.sh` 기준 최신 실행 결과: **87/87 통과**. 파일별로 정리했다. (Phase 9·10은 새 테스트
+추가 없는 클린업/버그 수정이라 테스트 수 변화 없음 — `log/phase9.md`, `log/phase10.md` 참고.)
 
 ### `PlaceholderTest.cpp` — Phase 1 (빌드 확인용)
 
@@ -32,9 +33,33 @@
 | `RejectsDuplicateId` | 동일 ID 중복 등록 거부 |
 | `RejectsRangeViolationsFromDummyInvalidSet` | dummygen invalid 세트 중 생산시간≤0/수율 범위 밖 케이스 거부 |
 | `SearchMatchesPartialCaseInsensitive` | id/name 등 부분 일치·대소문자 무시 검색 |
+| `SearchMatchesByProductionTimeAndYield` | avgProductionTimeMinutes/yield 수치형 필드 값으로도 검색 매치(교차 오탐 없음) — Phase 11 보강 |
 | `SetStockUpdatesExistingSample` | `setStock`으로 재고 절대값 설정 |
 | `SetStockReturnsFalseForUnknownId` | 존재하지 않는 id에 대한 `setStock`은 false |
 | `PersistsAcrossReload` | 등록 후 재시작해도 조회 가능(영속화) |
+
+### `ConsoleViewTest.cpp` — Phase 11 (실제 `IView` 구현체 출력 검증)
+
+`mvc` PoC의 `testing::internal::CaptureStdout()`/`GetCapturedStdout()` 패턴을 이식. 전체 문자열을
+하드코딩 비교하지 않고 핵심 값이 출력에 포함되는지(`find(...) != npos`)만 확인한다.
+
+| 테스트 | 검증 내용 |
+|---|---|
+| `ShowMessagePrintsMessage` | 메시지 텍스트가 그대로 출력됨 |
+| `ShowErrorPrintsErrorPrefixedMessage` | `Error:` 접두사 + 메시지 |
+| `ShowSamplesPrintsEachSample` | 여러 시료의 id/name/재고 값이 모두 출력됨 |
+| `ShowSamplesPrintsMessageWhenEmpty` | 빈 목록 시 안내 문구 |
+| `ShowSamplePrintsSampleDetail` | 단일 시료의 생산시간/수율/재고 값 출력 |
+| `ShowOrdersPrintsEachOrder` | 여러 주문의 주문번호/수량/상태 출력 |
+| `ShowOrdersPrintsMessageWhenEmpty` | 빈 목록 시 안내 문구 |
+| `ShowOrderPrintsOrderDetail` | 단일 주문 상세 출력 |
+| `ShowProductionStatusPrintsActiveAndWaiting` | 활성 생산 + 대기 큐가 모두 있을 때 |
+| `ShowProductionStatusPrintsNoActiveMessageWhenIdle` | 활성 생산 없을 때 안내 문구 |
+| `ShowProductionStatusPrintsNoWaitingMessageWhenQueueEmpty` | 대기 큐 없을 때 안내 문구 |
+| `ShowOrderCountSummaryPrintsAllFourCounts` | RESERVED/CONFIRMED/PRODUCING/RELEASE 4개 건수 출력 |
+| `ShowInventoryStatusPrintsLevelForEachSample` | 시료별 재고·RESERVED 합·판정 문자열 출력 |
+| `ShowInventoryStatusPrintsMessageWhenEmpty` | 등록된 시료 없을 때 안내 문구 |
+| `ShowMainMenuPrintsSummaryAndMenuItems` | 요약 4개 수치 + 메뉴 항목이 함께 출력됨 |
 
 ### `SampleControllerTest.cpp` — Phase 2 (Controller ↔ View 위임)
 
@@ -86,7 +111,8 @@
 | `ReserveOrderShowsSuccessMessage` | 주문 접수 성공 메시지 전달 |
 | `ReserveOrderForUnknownSampleShowsError` | 미등록 시료 주문 시 오류 전달 |
 | `ListOrdersForwardsToView` | 주문 목록을 View에 전달 |
-| `ApproveOrderShowsSuccessMessage` | 승인 성공 메시지 전달(충분/부족 공통) |
+| `ApproveOrderShowsSuccessMessage` | 승인 성공 메시지 전달(재고 충분, CONFIRMED 케이스) |
+| `ApproveOrderWithInsufficientStockShowsProductionWaitingMessage` | 재고 부족(PRODUCING) 승인 시 "생산 대기" 문구 포함 메시지 전달 — Phase 11 보강 |
 | `ApproveUnknownOrderShowsError` | 존재하지 않는 주문 승인 시 오류 전달 |
 | `RejectOrderShowsSuccessMessage` | 거절 성공 메시지 전달 |
 | `ListReservedOrdersForwardsOnlyReservedToView` | RESERVED만 필터링해 View에 전달 |
