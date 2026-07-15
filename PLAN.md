@@ -87,7 +87,10 @@
 
 - **목표**: 주문량/재고량 모니터링 기능 완성
 - **범위**: 상태별 주문 건수 집계(REJECTED 제외), 재고 상태 판정(여유/부족/고갈)
-- **완료 기준**: REJECTED 제외 집계 테스트, 3구간 판정 경계값(0, 부족 임계, 여유) 테스트 통과
+- **재고 판정 기준 (사람 확인 완료)**: 시료별로 `stock == 0`이면 항상 "고갈"(주문 존재 여부 무관, 최우선 판정). 그 외에는 해당 시료의 **RESERVED 주문 수량 합**과 비교해 `stock >= RESERVED 합`이면 "여유", 아니면 "부족". PRODUCING/CONFIRMED/RELEASE 주문은 이미 승인 시점에 재고 판정이 끝난 건이므로 비교 대상에서 제외한다 (PLAN.md Phase 5 "생산 중 수량은 재고 아님, 모니터링 판정 시에도 실제 보유 재고만 사용" 규칙의 연장 해석). 경계값(재고==RESERVED 합)은 Phase 4의 `ApproveExactStockMatchConfirmsWithoutShortage`와 동일하게 "여유" 쪽으로 처리한다.
+- **설계 시 반드시 확정할 사항 (Phase 6 코드 리뷰에서 발견)**:
+  - **서브메뉴 루프 중복 (Rule of Three)**: `MainController`의 `runSampleMenu`/`runOrderMenu`/`runApprovalMenu`/`runReleaseMenu` 4개가 거의 동일한 구조(메뉴 출력→`getline`→분기→`"0"`시 종료→그 외 오류)를 반복하고 있다(`CLAUDE.md` §4.2 Rule of Three 기준 충족). 이번 Phase에서 신설할 모니터링 서브메뉴까지 포함해 공통 헬퍼로 추출한다.
+- **완료 기준**: REJECTED 제외 집계 테스트, 3구간 판정 경계값(0, 부족 임계, 여유) 테스트 통과, 서브메뉴 헬퍼 추출 후 기존 5개 메뉴 전체 회귀 없음
 
 ## Phase 8 — 메인 메뉴 통합 및 E2E
 
